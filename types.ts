@@ -28,7 +28,8 @@ export interface User {
 
   // Age verification
   isAgeVerified: boolean;
-  ageVerificationPhotoUrl?: string; // Data URL of the document
+  ageVerificationPhotoUrl?: string; // URL of the document from Uploadcare
+  ageVerificationRequestId?: string;
 }
 
 export interface Rating {
@@ -71,7 +72,7 @@ export interface AgeVerificationRequest {
     id: string;
     userId: number;
     userName: string;
-    photoUrl: string; // Data URL of the document photo
+    photoUrl: string; // URL of the document photo from Uploadcare
     status: 'pending' | 'approved' | 'rejected';
     timestamp: number;
 }

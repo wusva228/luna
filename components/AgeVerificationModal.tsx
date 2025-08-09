@@ -1,89 +1,139 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { uploadFile } from '../services/uploadService';
 
 interface AgeVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (photoDataUrl: string) => void;
+  onSubmit: (photoUrl: string) => void;
 }
 
 export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [step, setStep] = useState(1); // 1: face scan, 2: document upload
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  if (!isOpen) return null;
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (loadEvent) => {
-        setPhoto(loadEvent.target?.result as string);
-      };
-      reader.readAsDataURL(e.target.files[0]);
+  const startCamera = async () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Ошибка доступа к камере:", err);
+      setError("Не удалось получить доступ к камере. Пожалуйста, проверьте разрешения в настройках вашего браузера.");
     }
   };
 
-  const handleSubmit = () => {
-    if (photo) {
-      onSubmit(photo);
-    } else {
-      alert('Пожалуйста, загрузите фото документа.');
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
   };
   
-  const FaceScanStep = () => (
-    <>
-      <div className="relative w-64 h-64 mx-auto my-4">
-        <div className="absolute inset-0 border-4 border-dashed border-blue-400 rounded-full animate-spin"></div>
-        <div className="absolute inset-4 bg-blue-500/10 rounded-full flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-32 w-32 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-        </div>
-      </div>
-      <p className="text-gray-300 text-center mb-6">Поместите ваше лицо в рамку. Это займет секунду.</p>
-      <button onClick={() => setStep(2)} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors">Далее</button>
-    </>
-  );
+  useEffect(() => {
+    if (isOpen) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    // Cleanup on component unmount
+    return () => stopCamera();
+  }, [isOpen]);
 
-  const DocumentUploadStep = () => (
-     <>
-        <div className="text-center my-4">
-            {photo ? (
-                <img src={photo} alt="Preview" className="w-auto h-40 mx-auto rounded-lg border-2 border-green-500" />
-            ) : (
-                <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-40 border-2 border-dashed border-gray-500 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-700"
-                >
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <p className="text-gray-400 mt-2">Загрузить фото документа</p>
-                </div>
-            )}
-             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden"/>
-        </div>
-        <p className="text-gray-300 text-center mb-6 text-sm">Подойдет фото паспорта или водительского удостоверения. Данные будут использованы только для подтверждения возраста.</p>
-        <button onClick={handleSubmit} disabled={!photo} className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">Завершить верификацию</button>
-     </>
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+        onClose();
+    }
+  };
+
+  const takePicture = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setCapturedImage(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  const retakePicture = () => {
+    setCapturedImage(null);
+    setError(null);
+    startCamera();
+  };
+
+  const handleSubmit = async () => {
+    if (!capturedImage) return;
+    setIsLoading(true);
+    try {
+      const blob = await (await fetch(capturedImage)).blob();
+      const file = new File([blob], `verification-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const uploadedUrl = await uploadFile(file);
+      onSubmit(uploadedUrl);
+    } catch (err) {
+      console.error("Ошибка при загрузке фото верификации:", err);
+      setError("Не удалось загрузить фото. Пожалуйста, попробуйте еще раз.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const CameraView = () => (
+      <div className="relative w-full h-64 mx-auto my-4 bg-gray-900 rounded-lg overflow-hidden">
+        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
+         <div className="absolute inset-0 border-4 border-dashed border-blue-400 rounded-lg pointer-events-none"></div>
+      </div>
+  );
+  
+  const CapturedImageView = () => (
+    <div className="relative w-full h-64 mx-auto my-4">
+        <img src={capturedImage!} alt="Снимок для верификации" className="w-full h-full object-contain rounded-lg" />
+    </div>
   );
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300"
+      className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       onClick={handleBackdropClick}
     >
       <div className="bg-gray-800 rounded-2xl shadow-lg w-full max-w-sm p-6 relative border border-gray-700 animate-slide-in-up">
         <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
         <h2 className="text-2xl font-bold mb-2 text-center">Подтверждение возраста</h2>
-        <p className="text-gray-400 text-center text-sm mb-4">Шаг {step} из 2</p>
+        
+        {error && <p className="text-red-400 text-center text-sm my-2">{error}</p>}
+        
+        {capturedImage ? <CapturedImageView /> : <CameraView />}
 
-        {step === 1 ? <FaceScanStep /> : <DocumentUploadStep />}
+        <div className="mt-4 space-y-2">
+            {capturedImage ? (
+                <>
+                    <button onClick={handleSubmit} disabled={isLoading} className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors disabled:bg-gray-600">
+                        {isLoading ? 'Загрузка...' : 'Отправить фото на проверку'}
+                    </button>
+                    <button onClick={retakePicture} disabled={isLoading} className="w-full py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-semibold transition-colors">
+                        Сделать другой снимок
+                    </button>
+                </>
+            ) : (
+                <button onClick={takePicture} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors">
+                    Сделать снимок
+                </button>
+            )}
+        </div>
+
       </div>
     </div>
   );

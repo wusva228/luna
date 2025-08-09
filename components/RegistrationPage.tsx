@@ -10,10 +10,9 @@ interface RegistrationPageProps {
     photo_url?: string;
   };
   onRegister: (user: User) => void;
-  updateUser: (user: Partial<User>) => void;
 }
 
-export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser, onRegister, updateUser }) => {
+export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser, onRegister }) => {
   const [email, setEmail] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);

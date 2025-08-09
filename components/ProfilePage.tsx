@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { User, PremiumRequest, Ticket } from '../types';
 import { VerifiedIcon, PremiumIcon, TicketIcon } from './icons';
 import { generateBio } from '../services/geminiService';
+import { uploadFile } from '../services/uploadService';
+
 
 interface ProfilePageProps {
   user: User;
@@ -16,6 +18,7 @@ interface ProfilePageProps {
 export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateUser, onContactAdmin, onVerifyAge, requestPremium, premiumRequest }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [editForm, setEditForm] = useState<Partial<User>>({ ...user });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -23,22 +26,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
     setEditForm(prev => ({ ...prev, [name]: value }));
   };
   
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
+        setIsUploading(true);
         const files = Array.from(e.target.files);
-        const newPhotoUrls: string[] = [...(editForm.photoUrls || [])];
-
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (loadEvent) => {
-                if(loadEvent.target?.result) {
-                    newPhotoUrls.push(loadEvent.target.result as string);
-                    // This is not ideal inside a loop, but works for this scope
-                    setEditForm(prev => ({ ...prev, photoUrls: newPhotoUrls }));
-                }
-            };
-            reader.readAsDataURL(file);
-        });
+        const uploadPromises = files.map(file => uploadFile(file));
+        try {
+            const uploadedUrls = await Promise.all(uploadPromises);
+            const newPhotoUrls = [...(editForm.photoUrls || []), ...uploadedUrls];
+            setEditForm(prev => ({ ...prev, photoUrls: newPhotoUrls }));
+        } catch (error) {
+            console.error("Ошибка при загрузке фото:", error);
+            alert("Не удалось загрузить одно или несколько изображений.");
+        } finally {
+            setIsUploading(false);
+        }
     }
   };
 
@@ -68,7 +70,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
       setEditForm({ ...user });
   }
   
-  const mainPhoto = (isEditing ? editForm.photoUrls : user.photoUrls)?.[0] || `https://i.pravatar.cc/400?u=${user.id}`;
+  const mainPhoto = (isEditing ? editForm.photoUrls : user.photoUrls)?.[0] || `https://ucarecdn.com/a6d94669-e389-4235-812e-15822deb257a/`;
   const userTickets = tickets.filter(t => t.userId === user.id);
   const genderDisplay = user.gender === 'male' ? 'Мужской' : 'Женский';
 
@@ -76,8 +78,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
     <div className="p-4 sm:p-6 pb-24 text-white">
       <div className="max-w-2xl mx-auto">
         <div className="relative">
-          <img src={mainPhoto} alt={user.name} className="w-full h-80 object-cover rounded-2xl shadow-lg" />
-          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full border-4 border-gray-900 overflow-hidden">
+          <img src={mainPhoto} alt={user.name} className="w-full h-80 object-cover rounded-2xl shadow-lg bg-gray-700" />
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full border-4 border-gray-900 overflow-hidden bg-gray-700">
              <img src={mainPhoto} alt={user.name} className="w-full h-full object-cover" />
           </div>
         </div>
@@ -102,11 +104,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-400">Отображаемое имя</label>
-                    <input type="text" name="name" value={editForm.name} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
+                    <input type="text" name="name" value={editForm.name || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
                   </div>
                    <div>
                     <label className="text-sm font-medium text-gray-400">Биография</label>
-                    <textarea name="bio" value={editForm.bio} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white resize-none mt-1" rows={3}></textarea>
+                    <textarea name="bio" value={editForm.bio || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white resize-none mt-1" rows={3}></textarea>
                     <button onClick={handleGenerateBio} disabled={isGeneratingBio} className="text-xs text-indigo-300 hover:underline disabled:text-gray-500">
                       {isGeneratingBio ? 'Генерация...' : '✨ Сгенерировать с помощью AI'}
                     </button>
@@ -148,9 +150,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
                             <button onClick={() => removePhoto(url)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition">&times;</button>
                         </div>
                     ))}
-                    <label className="w-full h-24 flex items-center justify-center border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:bg-gray-700 transition">
-                         <span className="text-gray-400 text-2xl">+</span>
-                         <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden"/>
+                    <label className={`w-full h-24 flex items-center justify-center border-2 border-dashed border-gray-600 rounded-lg  hover:bg-gray-700 transition ${isUploading ? 'cursor-not-allowed bg-gray-700' : 'cursor-pointer'}`}>
+                         {isUploading ? (
+                             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                         ) : (
+                            <span className="text-gray-400 text-2xl">+</span>
+                         )}
+                         <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" disabled={isUploading}/>
                     </label>
                 </div>
               </div>
@@ -182,7 +191,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
                 <div>
                      <h3 className="font-semibold text-lg">Подтверждение возраста</h3>
                      <p className="text-gray-400 text-sm mb-3">Подтвердите свой возраст, чтобы получить значок и больше доверия от других пользователей.</p>
-                     <button onClick={onVerifyAge} className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 transition rounded-lg">Пройти верификацию</button>
+                     <button 
+                       onClick={onVerifyAge} 
+                       className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 transition rounded-lg disabled:bg-gray-600"
+                       disabled={!!user.ageVerificationRequestId}
+                      >
+                       {user.ageVerificationRequestId ? 'Запрос на верификацию отправлен' : 'Пройти верификацию'}
+                      </button>
                 </div>
             )}
              {/* Share Location */}

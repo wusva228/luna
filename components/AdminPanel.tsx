@@ -116,6 +116,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                     </div>
                 </div>
             ))}
+             {pendingAgeVerificationCount === 0 && <p className="text-gray-400">Нет новых запросов.</p>}
             </div>
         </div>
       )}
@@ -135,6 +136,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                     </div>
                 </div>
             ))}
+            {pendingUnbanCount === 0 && <p className="text-gray-400">Нет новых запросов.</p>}
             </div>
         </div>
       )}
@@ -159,7 +161,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrls?.[0] || `https://i.pravatar.cc/100?u=${user.id}`} alt="" />
+                              <img className="h-10 w-10 rounded-full object-cover bg-gray-700" src={user.photoUrls?.[0]} alt="" />
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-white">{user.name} (@{user.username})</div>
@@ -218,12 +220,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{report.reason}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
                            <button onClick={() => resolveReport(report.id)} className="text-green-400 hover:text-green-300">Закрыть</button>
-                           <button onClick={() => handleBlockUser(users.find(u => u.id === report.reportedId)!)} className="text-red-400 hover:text-red-300">Заблок.</button>
+                           <button onClick={() => {
+                             const userToBlock = users.find(u => u.id === report.reportedId);
+                             if (userToBlock) handleBlockUser(userToBlock);
+                           }} className="text-red-400 hover:text-red-300">Заблок.</button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                 {openReportsCount === 0 && <p className="p-4 text-gray-400">Нет новых жалоб.</p>}
              </div>
           </div>
         </div>
@@ -255,6 +261,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                     ))}
                   </tbody>
                 </table>
+                {pendingPremiumCount === 0 && <p className="p-4 text-gray-400">Нет новых запросов.</p>}
              </div>
           </div>
         </div>
@@ -334,6 +341,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                         )}
                     </div>
                 ))}
+                {tickets.length === 0 && <p className="text-gray-400">Нет тикетов.</p>}
             </div>
         </div>
       )}

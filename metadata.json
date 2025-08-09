@@ -1,5 +1,7 @@
 {
   "name": "Luna Dating",
   "description": "Приложение для знакомств в Telegram, где пользователи могут создавать профили, знакомиться и оценивать друг друга. Включает премиум-подписки и панель администратора.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
