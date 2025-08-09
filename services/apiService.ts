@@ -1,3 +1,4 @@
+
 import type { User, Rating, Ticket, PremiumRequest, Report, AgeVerificationRequest, UnbanRequest } from '../types';
 import { calculateDistance } from '../utils/geolocation';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,7 +9,9 @@ const ADMIN_ID = 7264453091;
 const getFromStorage = <T>(key: string, defaultValue: T): T => {
   try {
     const item = window.localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    // KEY FIX: Validate data from localStorage. If it's corrupted, reset to default.
+    const parsed = item ? JSON.parse(item) : defaultValue;
+    return Array.isArray(parsed) ? parsed as T : defaultValue;
   } catch (error) {
     console.error(`Error reading from localStorage key “${key}”:`, error);
     return defaultValue;
@@ -44,13 +47,6 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 const createApi = <T extends {id: any}>(storageKey: string, initialData: T[]) => {
     let data = getFromStorage(storageKey, initialData);
 
-    // KEY FIX: Validate data from localStorage. If it's corrupted, reset to default.
-    if (!Array.isArray(data)) {
-        console.warn(`Corrupted data in localStorage for key "${storageKey}". Resetting to default.`);
-        data = initialData;
-        setInStorage(storageKey, data);
-    }
-
     return {
         async getAll(): Promise<T[]> {
             await simulateDelay(50);
@@ -60,9 +56,9 @@ const createApi = <T extends {id: any}>(storageKey: string, initialData: T[]) =>
             await simulateDelay(20);
             return data.find(item => item.id === id);
         },
-        async create(item: Omit<T, 'id'> | T): Promise<T> {
+        async create(itemData: Omit<T, 'id'>): Promise<T> {
             await simulateDelay(50);
-            const newItem = { ...(item as object), id: (item as any).id || uuidv4() } as T;
+            const newItem = { ...itemData, id: uuidv4() } as T;
             data = [...data, newItem];
             setInStorage(storageKey, data);
             return newItem;
@@ -96,17 +92,14 @@ const unbanRequestApi = createApi<UnbanRequest>('luna_unban_requests', []);
 // User API
 export const getUsers = () => userApi.getAll();
 export const getUserById = (id: number) => userApi.getById(id);
-export const addUser = (user: Omit<User, 'lastLogin'> & { lastLogin?: number }) => {
-    const fullUser: User = { ...user, lastLogin: Date.now() };
-    return userApi.create(fullUser);
-};
+export const addUser = (user: User) => userApi.create(user);
 export const updateUser = (updates: Partial<User> & { id: number }) => {
     return userApi.update(updates.id, updates);
 };
 
 // Rating API
 export const getRatings = () => ratingApi.getAll();
-export const addRating = (rating: Rating) => ratingApi.create(rating);
+export const addRating = (ratingData: Omit<Rating, 'id'>) => ratingApi.create(ratingData);
 
 // Ticket API
 export const getTickets = () => ticketApi.getAll();
@@ -120,14 +113,14 @@ export const replyToTicket = (id: string, reply: string) => ticketApi.update(id,
 // Premium Request API
 export const getPremiumRequests = () => premiumRequestApi.getAll();
 export const addPremiumRequest = (userId: number, userName: string, userTg: string) => {
-    const newRequest: PremiumRequest = { userId, userName, userTg, status: 'pending', timestamp: Date.now() };
-    return premiumRequestApi.create(newRequest);
+    const newRequestData: Omit<PremiumRequest, 'id'> = { userId, userName, userTg, status: 'pending', timestamp: Date.now() };
+    return premiumRequestApi.create(newRequestData);
 };
 export const approvePremiumRequest = async (userId: number) => {
     const reqs = await premiumRequestApi.getAll();
-    const reqToUpdate = reqs.find(r => r.userId === userId);
+    const reqToUpdate = reqs.find(r => r.userId === userId && r.status === 'pending');
     if(reqToUpdate) {
-        await premiumRequestApi.update((reqToUpdate as any).id, { status: 'approved' });
+        await premiumRequestApi.update(reqToUpdate.id, { status: 'approved' });
     }
     return updateUser({ id: userId, isPremium: true });
 };

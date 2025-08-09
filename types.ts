@@ -1,3 +1,4 @@
+
 export interface User {
   id: number;
   username: string;
@@ -33,6 +34,7 @@ export interface User {
 }
 
 export interface Rating {
+  id: string;
   raterId: number;
   ratedId: number;
   score: number;
@@ -52,6 +54,7 @@ export interface Ticket {
 }
 
 export interface PremiumRequest {
+  id: string;
   userId: number;
   userName: string;
   userTg: string;

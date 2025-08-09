@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Rating } from '../types';
 import UserCard from './UserCard';
@@ -5,7 +6,7 @@ import UserCard from './UserCard';
 interface MeetPageProps {
   currentUser: User;
   users: User[];
-  addRating: (rating: Rating) => void;
+  addRating: (ratingData: Omit<Rating, 'id'>) => void;
   ratings: Rating[];
   addReport: (reportedId: number, reason: string, reporterId: number) => void;
   checkMatch: (userId1: number, userId2: number) => boolean;
@@ -78,7 +79,7 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
         <p className="max-w-md text-gray-200">
           Чтобы оценивать других и пользоваться приложением, пожалуйста, установите публичный username в настройках Telegram.
         </p>
-        <p className="mt-2 text-gray-400 text-sm">(В Telegram: Настройки &gt; Изменить профиль &gt; Имя пользователя)</p>
+        <p className="mt-2 text-gray-400 text-sm">(В Telegram: Настройки > Изменить профиль > Имя пользователя)</p>
       </div>
     );
   }

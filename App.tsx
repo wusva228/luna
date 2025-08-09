@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { AppView, User, Notification, Ticket, Rating, PremiumRequest, Report, AgeVerificationRequest, UnbanRequest } from './types';
 import * as api from './services/apiService';
@@ -57,6 +58,7 @@ const App: React.FC = () => {
 
   // Load all data from API on mount
   const loadAllData = useCallback(async () => {
+    setIsDataLoading(true);
     const [
       usersData, ratingsData, ticketsData, premiumRequestsData, 
       reportsData, ageVerificationRequestsData, unbanRequestsData
@@ -71,6 +73,7 @@ const App: React.FC = () => {
     setReports(reportsData);
     setAgeVerificationRequests(ageVerificationRequestsData);
     setUnbanRequests(unbanRequestsData);
+    
   }, []);
 
   useEffect(() => {
@@ -82,28 +85,21 @@ const App: React.FC = () => {
       
       if (user) {
         setTelegramUser(user);
-        api.getUserById(user.id).then(userExists => {
-          if (userExists) {
-            setCurrentUserId(user.id);
-          }
-          setIsDataLoading(false);
-        });
+        setCurrentUserId(user.id);
       } else {
         console.warn("Не удалось получить пользователя из Telegram.");
-        setIsDataLoading(false);
+        // Fallback for local development
+        const mockDevUser: TelegramUser = { id: 101, first_name: 'Джессика', username: 'jessica_art', photo_url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?q=80&w=1887&auto=format&fit=crop' };
+        setTelegramUser(mockDevUser);
+        setCurrentUserId(mockDevUser.id);
       }
     } else {
         console.warn("Скрипт Telegram Web App не найден. Запуск в режиме локальной разработки.");
         const mockDevUser: TelegramUser = { id: 101, first_name: 'Джессика', username: 'jessica_art', photo_url: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?q=80&w=1887&auto=format&fit=crop' };
         setTelegramUser(mockDevUser);
-        api.getUserById(mockDevUser.id).then(userExists => {
-          if (userExists) {
-            setCurrentUserId(mockDevUser.id);
-          }
-          setIsDataLoading(false);
-        });
+        setCurrentUserId(mockDevUser.id);
     }
-    loadAllData();
+    loadAllData().finally(() => setIsDataLoading(false));
   }, [loadAllData]);
   
   const currentUser = useMemo(() => {
@@ -134,6 +130,7 @@ const App: React.FC = () => {
     if (currentUser) {
         updateUserState({ id: currentUser.id, lastLogin: Date.now() });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, ratings]); // Depends on ratings being loaded
 
 
@@ -146,8 +143,8 @@ const App: React.FC = () => {
     }
   }, [currentUser, isAdmin]);
 
-  const handleRegister = async (newUser: Omit<User, 'lastLogin'>) => {
-    const registeredUser = await api.addUser({ ...newUser, lastLogin: Date.now() });
+  const handleRegister = async (newUser: User) => {
+    const registeredUser = await api.addUser(newUser);
     setUsers(current => [...current, registeredUser]);
     setCurrentUserId(registeredUser.id);
     setShowWelcomeScreen(true);
@@ -174,14 +171,14 @@ const App: React.FC = () => {
     setNotifications(current => current.filter(n => n.id !== id));
   };
   
-  const addRating = useCallback(async (rating: Rating) => {
-      await api.addRating(rating);
-      setRatings(current => [...current, rating]);
+  const addRating = useCallback(async (ratingData: Omit<Rating, 'id'>) => {
+      const newRating = await api.addRating(ratingData);
+      setRatings(current => [...current, newRating]);
   }, []);
   
   const addReport = useCallback(async (reportedId: number, reason: string, reporterId: number) => {
     const newReport = await api.addReport(reportedId, reason, reporterId);
-    setReports(current => [newReport, ...current]);
+    setReports(current => [...current, newReport]);
   }, []);
 
   const checkMatch = useCallback((userId1: number, userId2: number): boolean => {
@@ -278,8 +275,8 @@ const App: React.FC = () => {
                 setTickets(current => current.map(t => t.id === id ? updatedTicket : t));
             }} 
             approvePremiumRequest={async (id) => {
-                await api.approvePremiumRequest(id);
-                updateUserState({id, isPremium: true});
+                const updatedRequest = await api.approvePremiumRequest(id);
+                setUsers(current => current.map(u => u.id === id ? updatedRequest! : u));
                 setPremiumRequests(current => current.filter(r => r.userId !== id));
             }}
             replyToTicket={async (id, reply) => {
@@ -294,7 +291,9 @@ const App: React.FC = () => {
                 const req = await api.handleAgeVerificationRequest(id, isApproved);
                 setAgeVerificationRequests(current => current.map(r => r.id === id ? req : r));
                 if (req.status === 'approved') {
-                    updateUserState({ id: req.userId, isAgeVerified: true });
+                    updateUserState({ id: req.userId, isAgeVerified: true, ageVerificationRequestId: undefined });
+                } else {
+                    updateUserState({ id: req.userId, ageVerificationRequestId: undefined });
                 }
             }}
             handleUnbanRequest={async (id, isApproved) => {
@@ -349,6 +348,7 @@ const App: React.FC = () => {
         onSubmit={async (photoUrl) => {
             const req = await api.addAgeVerificationRequest(currentUser.id, currentUser.name, photoUrl);
             setAgeVerificationRequests(current => [...current, req]);
+            updateUserState({ id: currentUser.id, ageVerificationRequestId: req.id });
             setAgeVerificationModalOpen(false);
             alert('Ваш запрос на верификацию отправлен.');
         }}
