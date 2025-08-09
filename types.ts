@@ -1,22 +1,23 @@
 export interface User {
   id: number;
-  username: string; // From Telegram, not editable
-  name: string; // From Telegram, but editable
-  email: string; // User-provided during registration
+  username: string;
+  name: string;
+  email: string;
   age: number;
   bio: string;
-  photoUrl: string; // From Telegram, but editable
+  photoUrl: string;
   isVerified: boolean;
   isPremium: boolean;
   isBlocked: boolean;
+  lastLogin: number; // timestamp
 }
 
 export interface Rating {
   raterId: number;
   ratedId: number;
-  score: number; // 1-10, or 11 for Super Like
+  score: number;
   isSuperLike: boolean;
-  timestamp: Date;
+  timestamp: number; // Use number for easier localStorage serialization
 }
 
 export interface Ticket {
@@ -26,7 +27,21 @@ export interface Ticket {
   subject: string;
   message: string;
   status: 'open' | 'closed';
-  timestamp: Date;
+  timestamp: number;
+}
+
+export interface PremiumRequest {
+  userId: number;
+  userName: string;
+  userTg: string;
+  status: 'pending' | 'approved';
+  timestamp: number;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'like' | 'info';
 }
 
 

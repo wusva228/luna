@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { AppView } from '../types';
 import { MeetIcon, ProfileIcon, AdminIcon } from './icons';
@@ -28,22 +27,22 @@ const NavItem: React.FC<{
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView, isAdmin }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700 flex justify-around shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700 flex justify-around shadow-lg z-10">
       <NavItem
-        label="Meet"
+        label="Лента"
         icon={<MeetIcon />}
         isActive={currentView === 'meet'}
         onClick={() => setView('meet')}
       />
       <NavItem
-        label="Profile"
+        label="Профиль"
         icon={<ProfileIcon />}
         isActive={currentView === 'profile'}
         onClick={() => setView('profile')}
       />
       {isAdmin && (
         <NavItem
-          label="Admin"
+          label="Админ"
           icon={<AdminIcon />}
           isActive={currentView === 'admin'}
           onClick={() => setView('admin')}

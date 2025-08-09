@@ -1,20 +1,16 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-// This will be undefined in the browser without a build step, so we handle it gracefully.
 const apiKey = process.env.API_KEY;
 
-// Conditionally initialize the AI client only if the API key exists.
-// This prevents the app from crashing on load if the key is not provided in the environment.
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const generateBio = async (name: string, interests: string): Promise<string> => {
     if (!ai) {
-        console.error("AI service is not configured because the API_KEY environment variable is missing.");
-        return "AI feature is currently unavailable. Please contact support.";
+        console.error("Сервис AI не настроен, так как отсутствует переменная окружения API_KEY.");
+        return "Функция AI в данный момент недоступна. Пожалуйста, свяжитесь с поддержкой.";
     }
 
-    const prompt = `Create a short, fun, and witty dating profile bio for a person named ${name}. Their interests are: ${interests}. The bio should be under 200 characters and sound engaging.`;
+    const prompt = `Создай короткую, забавную и остроумную биографию для профиля знакомств для человека по имени ${name}. Его/ее интересы: ${interests}. Биография должна быть не длиннее 200 символов и звучать привлекательно. Пиши на русском языке.`;
 
     try {
         const response = await ai.models.generateContent({
@@ -26,7 +22,7 @@ export const generateBio = async (name: string, interests: string): Promise<stri
         });
         return response.text.trim();
     } catch (error) {
-        console.error("Error generating bio with Gemini:", error);
-        return "Couldn't generate a bio at the moment. Please try again.";
+        console.error("Ошибка при генерации биографии с помощью Gemini:", error);
+        return "Не удалось сгенерировать биографию в данный момент. Попробуйте еще раз.";
     }
 };

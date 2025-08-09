@@ -1,22 +1,22 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
-import type { AppView, User, Ticket } from './types';
-import { useMockData } from './hooks/useMockData';
+import type { AppView, User, Notification } from './types';
+import { usePersistentData } from './hooks/usePersistentData';
 import { BottomNav } from './components/BottomNav';
 import { MeetPage } from './components/MeetPage';
 import { ProfilePage } from './components/ProfilePage';
 import { AdminPanel } from './components/AdminPanel';
 import { RegistrationPage } from './components/RegistrationPage';
 import { TicketModal } from './components/TicketModal';
+import { WelcomeScreen } from './components/WelcomeScreen';
+import { NotificationBanner } from './components/NotificationBanner';
 
-// Extend the Window interface to include the Telegram Web App object
+
 declare global {
   interface Window {
     Telegram?: any;
   }
 }
 
-// Define a type for Telegram's user object for clarity
 type TelegramUser = {
   id: number;
   first_name: string;
@@ -28,12 +28,14 @@ type TelegramUser = {
 const ADMIN_ID = 7264453091;
 
 const App: React.FC = () => {
-  const { users, ratings, tickets, updateUser, addUser, addRating, addTicket, updateTicketStatus } = useMockData();
+  const { users, ratings, tickets, premiumRequests, updateUser, addUser, addRating, addTicket, updateTicketStatus, addPremiumRequest, approvePremiumRequest, getNotificationsForUser, updateLastLogin } = usePersistentData();
   
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTicketModalOpen, setTicketModalOpen] = useState(false);
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -45,23 +47,29 @@ const App: React.FC = () => {
       
       if (user) {
         setTelegramUser(user);
-        const userExists = users.some(u => u.id === user.id);
+        const userExists = users.find(u => u.id === user.id);
         if (userExists) {
           setCurrentUserId(user.id);
+          setNotifications(getNotificationsForUser(userExists));
+          updateLastLogin(user.id);
         }
       } else {
-        console.warn("Could not retrieve user from Telegram. App may not function correctly.");
+        console.warn("Не удалось получить пользователя из Telegram.");
       }
       setIsLoading(false);
     } else {
-        console.warn("Telegram Web App script not found. Running in local dev mode.");
-        // Fallback for local development without Telegram
-        const mockDevUser: TelegramUser = { id: 102, first_name: 'Mike (Dev)', username: 'mike_climbs' };
+        console.warn("Скрипт Telegram Web App не найден. Запуск в режиме локальной разработки.");
+        const mockDevUser: TelegramUser = { id: 102, first_name: 'Майк (Дев)', username: 'mike_climbs' };
         setTelegramUser(mockDevUser);
-        setCurrentUserId(mockDevUser.id);
+        const userExists = users.find(u => u.id === mockDevUser.id);
+         if (userExists) {
+          setCurrentUserId(mockDevUser.id);
+          setNotifications(getNotificationsForUser(userExists));
+          updateLastLogin(mockDevUser.id);
+        }
         setIsLoading(false);
     }
-  }, []); // Run only once on mount
+  }, []);
 
   const currentUser = useMemo(() => {
     if (!currentUserId) return null;
@@ -80,7 +88,12 @@ const App: React.FC = () => {
   const handleRegister = (newUser: User) => {
     addUser(newUser);
     setCurrentUserId(newUser.id);
+    setShowWelcomeScreen(true);
   };
+  
+  const handleWelcomeClose = () => {
+    setShowWelcomeScreen(false);
+  }
 
   const handleCreateTicket = (subject: string, message: string) => {
     if(!currentUser) return;
@@ -91,13 +104,22 @@ const App: React.FC = () => {
       message,
     });
     setTicketModalOpen(false);
-    alert('Your ticket has been submitted!');
+    alert('Ваш тикет был отправлен!');
   };
 
+  const handleNotificationDismiss = (id: string) => {
+    setNotifications(current => current.filter(n => n.id !== id));
+  };
+
+
   if (isLoading) {
-    return <div className="h-screen w-screen flex items-center justify-center bg-gray-900 text-white">Connecting to Telegram...</div>;
+    return <div className="h-screen w-screen flex items-center justify-center bg-gray-900 text-white">Подключение к Telegram...</div>;
   }
   
+  if (showWelcomeScreen) {
+    return <WelcomeScreen onClose={handleWelcomeClose} />
+  }
+
   if (!currentUser && telegramUser) {
     return <RegistrationPage telegramUser={telegramUser} onRegister={handleRegister} />;
   }
@@ -105,21 +127,21 @@ const App: React.FC = () => {
   if (!currentUser) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4 bg-gray-900 text-white">
-        <h1 className="text-2xl font-bold text-red-500">Authentication Failed</h1>
-        <p className="mt-2 text-gray-300">Could not authenticate user. Please try launching the app again from Telegram.</p>
-        <p className="mt-1 text-gray-400 text-sm">(If developing locally, make sure a mock user is set).</p>
+        <h1 className="text-2xl font-bold text-red-500">Ошибка Аутентификации</h1>
+        <p className="mt-2 text-gray-300">Не удалось аутентифицировать пользователя. Пожалуйста, попробуйте запустить приложение снова из Telegram.</p>
       </div>
     );
   }
 
   const renderView = () => {
+    const premiumRequestForUser = premiumRequests.find(r => r.userId === currentUser.id);
     switch (view) {
       case 'meet':
         return <MeetPage currentUser={currentUser} users={users} addRating={addRating} ratings={ratings} />;
       case 'profile':
-        return <ProfilePage user={currentUser} updateUser={updateUser} onContactAdmin={() => setTicketModalOpen(true)} />;
+        return <ProfilePage user={currentUser} updateUser={updateUser} onContactAdmin={() => setTicketModalOpen(true)} requestPremium={addPremiumRequest} premiumRequest={premiumRequestForUser} />;
       case 'admin':
-        return isAdmin ? <AdminPanel users={users} ratings={ratings} tickets={tickets} updateUser={updateUser} updateTicketStatus={updateTicketStatus} /> : <div className="p-8 text-center">Access Denied</div>;
+        return isAdmin ? <AdminPanel users={users} ratings={ratings} tickets={tickets} premiumRequests={premiumRequests} updateUser={updateUser} updateTicketStatus={updateTicketStatus} approvePremiumRequest={approvePremiumRequest} /> : <div className="p-8 text-center">Доступ запрещен</div>;
       default:
         return <MeetPage currentUser={currentUser} users={users} addRating={addRating} ratings={ratings} />;
     }
@@ -127,6 +149,9 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-gray-900 font-sans flex flex-col overflow-hidden">
+      {notifications.map(n => (
+          <NotificationBanner key={n.id} notification={n} onDismiss={() => handleNotificationDismiss(n.id)} />
+      ))}
       <main className="flex-grow overflow-y-auto" style={{paddingBottom: '80px'}}>
         {renderView()}
       </main>
@@ -136,6 +161,9 @@ const App: React.FC = () => {
         onClose={() => setTicketModalOpen(false)}
         onSubmit={handleCreateTicket}
       />
+       <div className="fixed bottom-16 left-1/2 -translate-x-1/2 text-xs text-gray-600 z-0">
+          Made by WUSVA
+       </div>
     </div>
   );
 };

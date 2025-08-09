@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import type { User } from '../types';
+import type { User, PremiumRequest } from '../types';
 import { VerifiedIcon, PremiumIcon, TicketIcon } from './icons';
 import { generateBio } from '../services/geminiService';
 
@@ -8,9 +7,11 @@ interface ProfilePageProps {
   user: User;
   updateUser: (user: User) => void;
   onContactAdmin: () => void;
+  requestPremium: (userId: number, userName: string, userTg: string) => void;
+  premiumRequest: PremiumRequest | undefined;
 }
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ user, updateUser, onContactAdmin }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ user, updateUser, onContactAdmin, requestPremium, premiumRequest }) => {
   const [name, setName] = useState(user.name);
   const [bio, setBio] = useState(user.bio);
   const [isEditing, setIsEditing] = useState(false);
@@ -23,16 +24,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, updateUser, onCo
   
   const handleGenerateBio = async () => {
       setIsGeneratingBio(true);
-      const interests = "art, music, and travel"; // In a real app, this would come from user's profile data
+      const interests = "искусство, музыка, путешествия";
       const newBio = await generateBio(user.name, interests);
       setBio(newBio);
       setIsGeneratingBio(false);
   };
 
   const handleUpgrade = () => {
-    // In a real app, this would trigger a payment flow
-    alert('Congratulations! You are now a Premium user.');
-    updateUser({ ...user, isPremium: true });
+    alert('Ваш запрос на получение премиум-статуса отправлен администратору.');
+    requestPremium(user.id, user.name, user.username);
   };
   
   const handleCancelEdit = () => {
@@ -58,15 +58,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, updateUser, onCo
                 {user.isPremium && <PremiumIcon />}
             </div>
              <p className="text-gray-400 mt-1">@{user.username}</p>
-             {user.isPremium && <p className="text-sm font-semibold text-yellow-300 mt-1">Premium User</p>}
+             {user.isPremium && <p className="text-sm font-semibold text-yellow-300 mt-1">Премиум</p>}
         </div>
 
         <div className="mt-8 bg-gray-800 p-6 rounded-2xl">
-          <h2 className="text-xl font-semibold mb-3">About Me</h2>
+          <h2 className="text-xl font-semibold mb-3">Обо мне</h2>
           {isEditing ? (
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-400">Display Name</label>
+                <label className="text-sm font-medium text-gray-400">Отображаемое имя</label>
                 <input
                     type="text"
                     value={name}
@@ -75,7 +75,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, updateUser, onCo
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-400">Bio</label>
+                <label className="text-sm font-medium text-gray-400">Биография</label>
                 <textarea
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
@@ -85,43 +85,49 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, updateUser, onCo
               </div>
               <div className="flex justify-between items-center flex-wrap gap-2 mt-2">
                 <button onClick={handleGenerateBio} disabled={isGeneratingBio} className="px-4 py-2 text-sm bg-purple-600 rounded-lg hover:bg-purple-500 transition disabled:bg-gray-500 flex items-center gap-2">
-                  {isGeneratingBio ? 'Generating...' : <>✨ Gen AI Bio</>}
+                  {isGeneratingBio ? 'Генерация...' : <>✨ Сгенерировать</>}
                 </button>
                 <div className="flex gap-2">
-                    <button onClick={handleCancelEdit} className="px-4 py-2 text-sm bg-gray-600 rounded-lg hover:bg-gray-500 transition">Cancel</button>
-                    <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 rounded-lg hover:bg-indigo-500 transition">Save</button>
+                    <button onClick={handleCancelEdit} className="px-4 py-2 text-sm bg-gray-600 rounded-lg hover:bg-gray-500 transition">Отмена</button>
+                    <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 rounded-lg hover:bg-indigo-500 transition">Сохранить</button>
                 </div>
               </div>
             </div>
           ) : (
             <div>
               <p className="text-gray-300 whitespace-pre-wrap">{bio}</p>
-              <button onClick={() => setIsEditing(true)} className="mt-4 px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 transition rounded-lg">Edit Profile</button>
+              <button onClick={() => setIsEditing(true)} className="mt-4 px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 transition rounded-lg">Редактировать</button>
             </div>
           )}
         </div>
         
         {!user.isPremium && (
              <div className="mt-8 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 p-6 rounded-2xl text-center text-gray-900 shadow-lg">
-                <h2 className="text-2xl font-bold">Go Premium!</h2>
-                <p className="mt-2">Unlock Super Likes, see who likes you, and get unlimited ratings!</p>
-                <button 
-                    onClick={handleUpgrade}
-                    className="mt-4 px-8 py-3 bg-gray-900 text-yellow-300 font-bold rounded-full hover:bg-black transition-transform transform hover:scale-105"
-                >
-                    Upgrade Now
-                </button>
+                <h2 className="text-2xl font-bold">Станьте Премиум!</h2>
+                <p className="mt-2">Открывайте суперлайки, смотрите, кто вас лайкнул, и ставьте безлимитные оценки!</p>
+                {premiumRequest?.status === 'pending' ? (
+                     <div className="mt-4 px-8 py-3 bg-gray-900 text-yellow-300 font-bold rounded-full cursor-not-allowed">
+                        Ожидает одобрения
+                    </div>
+                ) : (
+                    <button 
+                        onClick={handleUpgrade}
+                        className="mt-4 px-8 py-3 bg-gray-900 text-yellow-300 font-bold rounded-full hover:bg-black transition-transform transform hover:scale-105"
+                    >
+                        Получить за 299 RUB
+                    </button>
+                )}
             </div>
         )}
         
         <div className="mt-8 bg-gray-800 p-6 rounded-2xl flex items-center justify-between">
             <div>
-                <h3 className="font-semibold text-lg">Need Help?</h3>
-                <p className="text-gray-400 text-sm">Contact our support team for any issues.</p>
+                <h3 className="font-semibold text-lg">Нужна помощь?</h3>
+                <p className="text-gray-400 text-sm">Свяжитесь с нашей поддержкой.</p>
             </div>
             <button onClick={onContactAdmin} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 transition rounded-lg flex items-center gap-2">
                 <TicketIcon className="w-5 h-5"/>
-                <span>Create Ticket</span>
+                <span>Создать тикет</span>
             </button>
         </div>
       </div>

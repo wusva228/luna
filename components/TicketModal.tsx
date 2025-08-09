@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface TicketModalProps {
@@ -16,7 +15,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, onSub
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim() || !message.trim()) {
-      alert("Please provide a subject and message.");
+      alert("Пожалуйста, укажите тему и сообщение.");
       return;
     }
     onSubmit(subject, message);
@@ -37,11 +36,11 @@ export const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, onSub
     >
       <div className="bg-gray-800 rounded-2xl shadow-lg w-full max-w-lg p-6 relative border border-gray-700 animate-slide-in-up">
         <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
-        <h2 className="text-2xl font-bold mb-4">Contact Administration</h2>
-        <p className="text-gray-400 mb-6">Create a support ticket. Our team will review it shortly.</p>
+        <h2 className="text-2xl font-bold mb-4">Связаться с администрацией</h2>
+        <p className="text-gray-400 mb-6">Создайте тикет в поддержку. Наша команда скоро его рассмотрит.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-300">Subject</label>
+            <label htmlFor="subject" className="block text-sm font-medium text-gray-300">Тема</label>
             <input
               type="text"
               id="subject"
@@ -52,7 +51,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, onSub
             />
           </div>
           <div>
-            <label htmlFor="message" className="block text-sm font-medium text-gray-300">Message</label>
+            <label htmlFor="message" className="block text-sm font-medium text-gray-300">Сообщение</label>
             <textarea
               id="message"
               rows={5}
@@ -67,7 +66,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, onSub
               type="submit"
               className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition-colors"
             >
-              Submit Ticket
+              Отправить тикет
             </button>
           </div>
         </form>

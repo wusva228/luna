@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Rating } from '../types';
 import UserCard from './UserCard';
@@ -23,7 +22,6 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
   }, [users, currentUser.id, ratings]);
 
   useEffect(() => {
-     // When the list of users to rate changes, reset the index
      setCurrentIndex(0);
      setCardKey(Date.now());
   }, [usersToRate]);
@@ -42,22 +40,22 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
         ratedId: ratedUser.id,
         score,
         isSuperLike,
-        timestamp: new Date(),
+        timestamp: Date.now(),
       });
       setCurrentIndex(prev => prev + 1);
       setAnimation('idle');
-      setCardKey(Date.now()); // Change key to trigger re-render and animation
-    }, 500); // Match animation duration
+      setCardKey(Date.now());
+    }, 500);
   };
 
   if (!currentUser.username || currentUser.username.startsWith('user')) {
     return (
       <div className="p-8 text-center flex flex-col items-center justify-center h-full">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Set Your Username!</h2>
+        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Установите ваш username!</h2>
         <p className="max-w-md text-gray-200">
-          To like other profiles and get the best experience, please set a public username in your Telegram settings.
+          Чтобы оценивать других и пользоваться приложением, пожалуйста, установите публичный username в настройках Telegram.
         </p>
-        <p className="mt-2 text-gray-400 text-sm">(In Telegram: Settings &gt; Edit Profile &gt; Username)</p>
+        <p className="mt-2 text-gray-400 text-sm">(В Telegram: Настройки &gt; Изменить профиль &gt; Имя пользователя)</p>
       </div>
     );
   }
@@ -80,8 +78,8 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center text-gray-400">
-                <p className="text-xl">That's everyone for now!</p>
-                <p>Come back later to see new people.</p>
+                <p className="text-xl">На сегодня это все!</p>
+                <p>Загляните позже, чтобы увидеть новых людей.</p>
             </div>
           )}
         </div>
@@ -102,12 +100,12 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
                     onClick={() => handleRating(11, true)}
                     disabled={!currentUser.isPremium}
                     className="w-10 h-10 rounded-full flex items-center justify-center bg-yellow-500 text-white font-bold disabled:bg-gray-600 disabled:cursor-not-allowed hover:bg-yellow-400 transition-all focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                    title={currentUser.isPremium ? "Super Like!" : "Available for Premium users"}
+                    title={currentUser.isPremium ? "Суперлайк!" : "Доступно для Премиум пользователей"}
                 >
                    ✨
                 </button>
             </div>
-            { !currentUser.isPremium && <p className="text-center text-xs text-gray-400 mt-2">Upgrade to Premium to send Super Likes!</p>}
+            { !currentUser.isPremium && <p className="text-center text-xs text-gray-400 mt-2">Купите Премиум, чтобы отправлять Суперлайки!</p>}
         </div>
       )}
     </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { User } from '../types';
 import { VerifiedIcon, PremiumIcon } from './icons';
@@ -18,7 +17,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           {user.isVerified && <VerifiedIcon />}
           {user.isPremium && <PremiumIcon />}
         </div>
-        {user.isPremium && <p className="text-sm font-semibold text-yellow-300">Premium User</p>}
+        {user.isPremium && <p className="text-sm font-semibold text-yellow-300">Премиум</p>}
         <p className="mt-2 text-gray-200">{user.bio}</p>
       </div>
     </div>
