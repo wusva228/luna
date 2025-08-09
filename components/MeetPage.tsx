@@ -20,8 +20,14 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
 
   const usersToRate = useMemo(() => {
     const ratedUserIds = new Set(ratings.filter(r => r.raterId === currentUser.id).map(r => r.ratedId));
-    return users.filter(u => u.id !== currentUser.id && !u.isBlocked && !ratedUserIds.has(u.id));
-  }, [users, currentUser.id, ratings]);
+    
+    return users.filter(u => 
+      u.id !== currentUser.id && 
+      !u.isBlocked && 
+      !ratedUserIds.has(u.id) &&
+      u.gender !== currentUser.gender // Фильтр по противоположному полу
+    );
+  }, [users, currentUser, ratings]);
 
   useEffect(() => {
      setCurrentIndex(0);

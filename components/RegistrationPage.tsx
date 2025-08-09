@@ -15,6 +15,7 @@ interface RegistrationPageProps {
 export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser, onRegister }) => {
   const [email, setEmail] = useState('');
   const [age, setAge] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [bio, setBio] = useState('Привет в Luna Dating! Ищу с кем познакомиться.');
   
   const [height, setHeight] = useState('');
@@ -23,8 +24,8 @@ export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !age.trim()) {
-      alert('Пожалуйста, заполните все обязательные поля.');
+    if (!email.trim() || !age.trim() || !gender) {
+      alert('Пожалуйста, заполните все обязательные поля, включая пол.');
       return;
     }
     const parsedAge = parseInt(age, 10);
@@ -38,6 +39,7 @@ export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser
       name: `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
       email,
       age: parsedAge,
+      gender,
       bio,
       photoUrls: telegramUser.photo_url ? [telegramUser.photo_url] : [`https://i.pravatar.cc/400?u=${telegramUser.id}`],
       isVerified: false,
@@ -87,6 +89,25 @@ export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser
               className="mt-1 block w-full bg-gray-800 border border-gray-700 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none sm:text-sm disabled:opacity-70"
             />
              <p className="text-xs text-gray-400 mt-1">Имя можно будет изменить позже в профиле.</p>
+          </div>
+           <div>
+            <label className="text-sm font-medium text-gray-300">Ваш пол <span className="text-red-500">*</span></label>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setGender('male')}
+                className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${gender === 'male' ? 'bg-indigo-600 text-white ring-2 ring-indigo-400' : 'bg-gray-700 hover:bg-gray-600'}`}
+              >
+                Мужской ♂️
+              </button>
+              <button
+                type="button"
+                onClick={() => setGender('female')}
+                className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${gender === 'female' ? 'bg-pink-600 text-white ring-2 ring-pink-400' : 'bg-gray-700 hover:bg-gray-600'}`}
+              >
+                Женский ♀️
+              </button>
+            </div>
           </div>
           <div>
             <label htmlFor="email" className="text-sm font-medium text-gray-300">Email адрес <span className="text-red-500">*</span></label>

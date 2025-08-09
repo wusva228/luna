@@ -72,6 +72,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
   
   const mainPhoto = (isEditing ? editForm.photoUrls : user.photoUrls)?.[0] || `https://i.pravatar.cc/400?u=${user.id}`;
   const userTickets = tickets.filter(t => t.userId === user.id);
+  const genderDisplay = user.gender === 'male' ? 'Мужской' : 'Женский';
 
   return (
     <div className="p-4 sm:p-6 pb-24 text-white">
@@ -90,6 +91,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
                 {user.isPremium && <PremiumIcon />}
             </div>
              <p className="text-gray-400 mt-1">@{user.username}</p>
+             <p className="text-gray-300 mt-1">{genderDisplay}</p>
              {user.isPremium && <p className="text-sm font-semibold text-yellow-300 mt-1">Премиум</p>}
         </div>
 

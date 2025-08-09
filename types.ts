@@ -4,6 +4,7 @@ export interface User {
   name: string;
   email: string;
   age: number;
+  gender: 'male' | 'female'; // Добавлено обязательное поле пола
   bio: string;
   photoUrls: string[];
   isVerified: boolean;

@@ -44,7 +44,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isMatch, onReport }) => {
 
       <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 text-white flex flex-col justify-end">
         <div className="flex items-center space-x-2">
-          <h2 className="text-3xl font-bold">{user.name}, {user.age}</h2>
+          <h2 className="text-3xl font-bold">{user.name}, {user.age} {user.gender === 'male' ? '♂️' : '♀️'}</h2>
           {user.isVerified && <VerifiedIcon />}
           {user.isPremium && <PremiumIcon />}
         </div>

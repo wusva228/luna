@@ -147,6 +147,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                   <thead className="bg-gray-700/50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Пользователь</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Пол</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Статус</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Действия</th>
                     </tr>
@@ -157,13 +158,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrls[0]} alt="" />
+                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrls?.[0] || `https://i.pravatar.cc/100?u=${user.id}`} alt="" />
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-white">{user.name} (@{user.username})</div>
                               <div className="text-sm text-gray-400">ID: {user.id}</div>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {user.gender === 'male' ? 'М' : 'Ж'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center space-x-2">
