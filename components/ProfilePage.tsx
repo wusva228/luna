@@ -8,35 +8,44 @@ interface ProfilePageProps {
   tickets: Ticket[];
   updateUser: (user: Partial<User>) => void;
   onContactAdmin: () => void;
+  onVerifyAge: () => void;
   requestPremium: (userId: number, userName: string, userTg: string) => void;
   premiumRequest: PremiumRequest | undefined;
 }
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateUser, onContactAdmin, requestPremium, premiumRequest }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateUser, onContactAdmin, onVerifyAge, requestPremium, premiumRequest }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<User>>({
-    name: user.name,
-    bio: user.bio,
-    photoUrls: user.photoUrls,
-    height: user.height,
-    weight: user.weight,
-    zodiacSign: user.zodiacSign,
-    eyeColor: user.eyeColor,
-    preferences: user.preferences,
-    badHabits: user.badHabits,
-  });
+  const [editForm, setEditForm] = useState<Partial<User>>({ ...user });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setEditForm(prev => ({ ...prev, [name]: value }));
   };
-
-  const handlePhotoUrlsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const urls = e.target.value.split('\n').map(url => url.trim()).filter(Boolean);
-    setEditForm(prev => ({ ...prev, photoUrls: urls }));
-  };
   
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+        const files = Array.from(e.target.files);
+        const newPhotoUrls: string[] = [...(editForm.photoUrls || [])];
+
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (loadEvent) => {
+                if(loadEvent.target?.result) {
+                    newPhotoUrls.push(loadEvent.target.result as string);
+                    // This is not ideal inside a loop, but works for this scope
+                    setEditForm(prev => ({ ...prev, photoUrls: newPhotoUrls }));
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+  };
+
+  const removePhoto = (urlToRemove: string) => {
+      setEditForm(prev => ({ ...prev, photoUrls: prev.photoUrls?.filter(url => url !== urlToRemove) }));
+  };
+
   const handleSave = () => {
     updateUser({ id: user.id, ...editForm });
     setIsEditing(false);
@@ -56,18 +65,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
   
   const handleCancelEdit = () => {
       setIsEditing(false);
-      // Reset form to original user data
-      setEditForm({
-        name: user.name,
-        bio: user.bio,
-        photoUrls: user.photoUrls,
-        height: user.height,
-        weight: user.weight,
-        zodiacSign: user.zodiacSign,
-        eyeColor: user.eyeColor,
-        preferences: user.preferences,
-        badHabits: user.badHabits,
-      });
+      setEditForm({ ...user });
   }
   
   const mainPhoto = (isEditing ? editForm.photoUrls : user.photoUrls)?.[0] || `https://i.pravatar.cc/400?u=${user.id}`;
@@ -92,6 +90,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
             </div>
              <p className="text-gray-400 mt-1">@{user.username}</p>
              <p className="text-gray-300 mt-1">{genderDisplay}</p>
+             {user.isAgeVerified && <p className="text-green-400 font-semibold text-sm mt-1">✅ Возраст подтвержден</p>}
              {user.isPremium && <p className="text-sm font-semibold text-yellow-300 mt-1">Премиум</p>}
         </div>
 
@@ -99,15 +98,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
           <h2 className="text-xl font-semibold mb-3">Обо мне</h2>
           {isEditing ? (
             <div className="space-y-4">
+              {/* EDITING FORM */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-400">Отображаемое имя</label>
                     <input type="text" name="name" value={editForm.name} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-400">Цвет глаз</label>
-                    <input type="text" name="eyeColor" value={editForm.eyeColor || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
+                   <div>
+                    <label className="text-sm font-medium text-gray-400">Биография</label>
+                    <textarea name="bio" value={editForm.bio} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white resize-none mt-1" rows={3}></textarea>
+                    <button onClick={handleGenerateBio} disabled={isGeneratingBio} className="text-xs text-indigo-300 hover:underline disabled:text-gray-500">
+                      {isGeneratingBio ? 'Генерация...' : '✨ Сгенерировать с помощью AI'}
+                    </button>
                   </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-400">Рост (см)</label>
                     <input type="number" name="height" value={editForm.height || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
@@ -120,12 +125,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
                     <label className="text-sm font-medium text-gray-400">Знак зодиака</label>
                     <input type="text" name="zodiacSign" value={editForm.zodiacSign || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-400">Цвет глаз</label>
+                    <input type="text" name="eyeColor" value={editForm.eyeColor || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
+                  </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-400">Биография</label>
-                <textarea name="bio" value={editForm.bio} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white resize-none mt-1" rows={4}></textarea>
-              </div>
-              <div>
+               <div>
                 <label className="text-sm font-medium text-gray-400">Предпочтения (например, "книги, кино, спорт")</label>
                 <input type="text" name="preferences" value={editForm.preferences || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
               </div>
@@ -133,21 +138,29 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
                 <label className="text-sm font-medium text-gray-400">Вредные привычки</label>
                 <input type="text" name="badHabits" value={editForm.badHabits || ''} onChange={handleInputChange} className="w-full bg-gray-700 p-2 rounded-lg text-white mt-1"/>
               </div>
+              {/* Photo uploader */}
               <div>
-                 <label className="text-sm font-medium text-gray-400">Ссылки на фото (каждая с новой строки)</label>
-                 <textarea value={editForm.photoUrls?.join('\n') || ''} onChange={handlePhotoUrlsChange} className="w-full bg-gray-700 p-2 rounded-lg text-white resize-none mt-1" rows={3}></textarea>
-              </div>
-              <div className="flex justify-between items-center flex-wrap gap-2 mt-2">
-                <button onClick={handleGenerateBio} disabled={isGeneratingBio} className="px-4 py-2 text-sm bg-purple-600 rounded-lg hover:bg-purple-500 transition disabled:bg-gray-500 flex items-center gap-2">
-                  {isGeneratingBio ? 'Генерация...' : <>✨ Сгенерировать био</>}
-                </button>
-                <div className="flex gap-2">
-                    <button onClick={handleCancelEdit} className="px-4 py-2 text-sm bg-gray-600 rounded-lg hover:bg-gray-500 transition">Отмена</button>
-                    <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 rounded-lg hover:bg-indigo-500 transition">Сохранить</button>
+                <label className="text-sm font-medium text-gray-400">Фотографии</label>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                    {editForm.photoUrls?.map(url => (
+                        <div key={url} className="relative group">
+                            <img src={url} className="w-full h-24 object-cover rounded-lg" />
+                            <button onClick={() => removePhoto(url)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition">&times;</button>
+                        </div>
+                    ))}
+                    <label className="w-full h-24 flex items-center justify-center border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                         <span className="text-gray-400 text-2xl">+</span>
+                         <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden"/>
+                    </label>
                 </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <button onClick={handleCancelEdit} className="px-4 py-2 text-sm bg-gray-600 rounded-lg hover:bg-gray-500 transition">Отмена</button>
+                <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 rounded-lg hover:bg-indigo-500 transition">Сохранить</button>
               </div>
             </div>
           ) : (
+             // VIEWING PROFILE
             <div className="space-y-4">
               <p className="text-gray-300 whitespace-pre-wrap">{user.bio}</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -161,6 +174,28 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, tickets, updateU
               <button onClick={() => setIsEditing(true)} className="mt-4 px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 transition rounded-lg">Редактировать профиль</button>
             </div>
           )}
+        </div>
+
+        <div className="mt-8 bg-gray-800 p-6 rounded-2xl space-y-4">
+            {/* Age Verification */}
+            {!user.isAgeVerified && (
+                <div>
+                     <h3 className="font-semibold text-lg">Подтверждение возраста</h3>
+                     <p className="text-gray-400 text-sm mb-3">Подтвердите свой возраст, чтобы получить значок и больше доверия от других пользователей.</p>
+                     <button onClick={onVerifyAge} className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 transition rounded-lg">Пройти верификацию</button>
+                </div>
+            )}
+             {/* Share Location */}
+            <div>
+                 <h3 className="font-semibold text-lg">Видимость на карте</h3>
+                 <div className="flex items-center justify-between">
+                     <p className="text-gray-400 text-sm">Показывать меня на карте</p>
+                     <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={user.shareLocation} onChange={e => updateUser({ id: user.id, shareLocation: e.target.checked })} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                 </div>
+            </div>
         </div>
         
         {!user.isPremium && (

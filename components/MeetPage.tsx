@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { User, Rating, Report } from '../types';
+import type { User, Rating } from '../types';
 import UserCard from './UserCard';
 
 interface MeetPageProps {
@@ -9,11 +9,12 @@ interface MeetPageProps {
   ratings: Rating[];
   addReport: (reportedId: number, reason: string, reporterId: number) => void;
   checkMatch: (userId1: number, userId2: number) => boolean;
+  getDistanceToUser: (currentUser: User, otherUser: User) => number | null;
 }
 
 type AnimationState = 'idle' | 'left' | 'right';
 
-export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRating, ratings, addReport, checkMatch }) => {
+export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRating, ratings, addReport, checkMatch, getDistanceToUser }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animation, setAnimation] = useState<AnimationState>('idle');
   const [cardKey, setCardKey] = useState(0);
@@ -57,11 +58,16 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
   };
 
   const handleReport = (reportedId: number) => {
-    addReport(reportedId, 'Жалоба из ленты.', currentUser.id);
-    // Move to the next card after reporting
-    if (currentIndex < usersToRate.length) {
-      setCurrentIndex(prev => prev + 1);
-      setCardKey(Date.now());
+    const reason = prompt(`Пожалуйста, укажите причину жалобы на пользователя:`);
+    if(reason) {
+        addReport(reportedId, reason, currentUser.id);
+        // Move to the next card after reporting
+        if (currentIndex < usersToRate.length) {
+          setCurrentIndex(prev => prev + 1);
+          setCardKey(Date.now());
+        }
+    } else if (reason === '') {
+        alert('Причина жалобы не может быть пустой.');
     }
   };
 
@@ -94,6 +100,7 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
               <UserCard 
                 user={currentProfile}
                 isMatch={checkMatch(currentUser.id, currentProfile.id)}
+                distance={getDistanceToUser(currentUser, currentProfile)}
                 onReport={handleReport}
               />
             </div>

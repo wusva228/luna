@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { User, Rating, Ticket, PremiumRequest, Report } from '../types';
+import type { User, Rating, Ticket, PremiumRequest, Report, AgeVerificationRequest, UnbanRequest } from '../types';
 import { VerifiedIcon } from './icons';
 
 interface AdminPanelProps {
@@ -8,16 +8,20 @@ interface AdminPanelProps {
   tickets: Ticket[];
   premiumRequests: PremiumRequest[];
   reports: Report[];
+  ageVerificationRequests: AgeVerificationRequest[];
+  unbanRequests: UnbanRequest[];
   updateUser: (user: Partial<User>) => void;
   updateTicketStatus: (ticketId: string, status: 'open' | 'closed') => void;
   approvePremiumRequest: (userId: number) => void;
   replyToTicket: (ticketId: string, reply: string) => void;
   resolveReport: (reportId: string) => void;
+  handleAgeVerificationRequest: (requestId: string, isApproved: boolean) => void;
+  handleUnbanRequest: (requestId: string, isApproved: boolean) => void;
 }
 
 const ADMIN_ID = 7264453091;
 
-type AdminTab = 'users' | 'ratings' | 'tickets' | 'premium' | 'reports';
+type AdminTab = 'users' | 'ratings' | 'tickets' | 'premium' | 'reports' | 'age_verification' | 'unban_requests';
 
 const TabButton: React.FC<{label: string; isActive: boolean; onClick: () => void; count?: number}> = ({ label, isActive, onClick, count }) => (
     <button
@@ -50,15 +54,29 @@ const TicketReplyForm: React.FC<{ ticketId: string, onReply: (ticketId: string, 
     );
 };
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets, premiumRequests, reports, updateUser, updateTicketStatus, approvePremiumRequest, replyToTicket, resolveReport }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets, premiumRequests, reports, ageVerificationRequests, unbanRequests, updateUser, updateTicketStatus, approvePremiumRequest, replyToTicket, resolveReport, handleAgeVerificationRequest, handleUnbanRequest }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
 
   const getUserName = (id: number) => users.find(u => u.id === id)?.name || `Пользователь #${id}`;
-  const getUser = (id: number) => users.find(u => u.id === id);
+
+  const handleBlockUser = (user: User) => {
+    if (user.isBlocked) {
+        updateUser({ id: user.id, isBlocked: false, banReason: undefined });
+    } else {
+        const reason = prompt(`Укажите причину блокировки для пользователя ${user.name}:`);
+        if (reason) {
+            updateUser({ id: user.id, isBlocked: true, banReason: reason });
+        } else {
+            alert('Причина блокировки не может быть пустой.');
+        }
+    }
+  };
 
   const openTicketsCount = tickets.filter(t => t.status === 'open').length;
   const pendingPremiumCount = premiumRequests.filter(r => r.status === 'pending').length;
   const openReportsCount = reports.filter(r => r.status === 'open').length;
+  const pendingAgeVerificationCount = ageVerificationRequests.filter(r => r.status === 'pending').length;
+  const pendingUnbanCount = unbanRequests.filter(r => r.status === 'pending').length;
 
   return (
     <div className="p-4 sm:p-6 pb-24 text-white">
@@ -67,13 +85,116 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
       <div className="mb-6 border-b border-gray-700">
         <nav className="flex space-x-2 sm:space-x-4 overflow-x-auto" aria-label="Tabs">
             <TabButton label="Пользователи" isActive={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-            <TabButton label="Запросы на премиум" isActive={activeTab === 'premium'} onClick={() => setActiveTab('premium')} count={pendingPremiumCount} />
+            <TabButton label="Верификация" isActive={activeTab === 'age_verification'} onClick={() => setActiveTab('age_verification')} count={pendingAgeVerificationCount} />
+            <TabButton label="Разбан" isActive={activeTab === 'unban_requests'} onClick={() => setActiveTab('unban_requests')} count={pendingUnbanCount} />
+            <TabButton label="Премиум" isActive={activeTab === 'premium'} onClick={() => setActiveTab('premium')} count={pendingPremiumCount} />
             <TabButton label="Жалобы" isActive={activeTab === 'reports'} onClick={() => setActiveTab('reports')} count={openReportsCount} />
             <TabButton label="Тикеты" isActive={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} count={openTicketsCount} />
-            <TabButton label="Лента оценок" isActive={activeTab === 'ratings'} onClick={() => setActiveTab('ratings')} />
+            <TabButton label="Оценки" isActive={activeTab === 'ratings'} onClick={() => setActiveTab('ratings')} />
         </nav>
       </div>
+
+      {activeTab === 'age_verification' && (
+        <div>
+            <h2 className="text-xl font-semibold mb-4">Запросы на верификацию возраста ({pendingAgeVerificationCount})</h2>
+            <div className="space-y-4">
+            {ageVerificationRequests.filter(r => r.status === 'pending').map(request => (
+                <div key={request.id} className="bg-gray-800 p-4 rounded-lg flex items-start gap-4">
+                    <div className="flex-grow">
+                        <p className="font-bold">{request.userName} (ID: {request.userId})</p>
+                        <p className="text-xs text-gray-400">{new Date(request.timestamp).toLocaleString()}</p>
+                        <div className="mt-4 flex gap-4">
+                            <button onClick={() => handleAgeVerificationRequest(request.id, true)} className="px-3 py-1 text-sm bg-green-600 hover:bg-green-500 rounded-md">Одобрить</button>
+                            <button onClick={() => handleAgeVerificationRequest(request.id, false)} className="px-3 py-1 text-sm bg-red-600 hover:bg-red-500 rounded-md">Отклонить</button>
+                        </div>
+                    </div>
+                    <div className="flex-shrink-0">
+                        <a href={request.photoUrl} target="_blank" rel="noopener noreferrer">
+                            <img src={request.photoUrl} alt="Document" className="w-40 h-auto rounded-md border border-gray-600" />
+                        </a>
+                        <p className="text-center text-xs text-gray-400 mt-1">Фото документа</p>
+                    </div>
+                </div>
+            ))}
+            </div>
+        </div>
+      )}
       
+      {activeTab === 'unban_requests' && (
+         <div>
+            <h2 className="text-xl font-semibold mb-4">Запросы на разбан ({pendingUnbanCount})</h2>
+             <div className="space-y-4">
+            {unbanRequests.filter(r => r.status === 'pending').map(request => (
+                <div key={request.id} className="bg-gray-800 p-4 rounded-lg">
+                    <p className="font-bold">{request.userName} (ID: {request.userId})</p>
+                    <p className="text-sm text-gray-400 mt-1">Причина запроса: <span className="text-gray-200 italic">"{request.reason}"</span></p>
+                    <p className="text-xs text-gray-500">{new Date(request.timestamp).toLocaleString()}</p>
+                    <div className="mt-3 flex gap-4">
+                        <button onClick={() => handleUnbanRequest(request.id, true)} className="px-3 py-1 text-sm bg-green-600 hover:bg-green-500 rounded-md">Одобрить</button>
+                        <button onClick={() => handleUnbanRequest(request.id, false)} className="px-3 py-1 text-sm bg-red-600 hover:bg-red-500 rounded-md">Отклонить</button>
+                    </div>
+                </div>
+            ))}
+            </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Все пользователи ({users.length})</h2>
+          <div className="bg-gray-800 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-700/50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Пользователь</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Пол</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Статус</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {users.filter(u => u.id !== ADMIN_ID).map(user => (
+                      <tr key={user.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrls?.[0] || `https://i.pravatar.cc/100?u=${user.id}`} alt="" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-white">{user.name} (@{user.username})</div>
+                              <div className="text-sm text-gray-400">ID: {user.id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {user.gender === 'male' ? 'М' : 'Ж'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center space-x-2">
+                                {user.isVerified && <span title="Верифицирован"><VerifiedIcon className="w-5 h-5"/></span>}
+                                {user.isAgeVerified && <span className="text-green-400 text-xs font-bold" title="Возраст подтвержден">18+</span>}
+                                {user.isPremium && <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-500 text-yellow-900">Премиум</span>}
+                                {user.isBlocked && <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-500 text-red-900" title={`Причина: ${user.banReason}`}>Блок</span>}
+                            </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
+                          <button onClick={() => updateUser({id: user.id, isVerified: !user.isVerified})} className="text-indigo-400 hover:text-indigo-300">
+                            {user.isVerified ? 'Снять вериф.' : 'Верифиц.'}
+                          </button>
+                          <button onClick={() => handleBlockUser(user)} className="text-red-400 hover:text-red-300">
+                            {user.isBlocked ? 'Разблок.' : 'Заблок.'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'reports' && (
         <div>
           <h2 className="text-xl font-semibold mb-4">Жалобы ({openReportsCount} открытых)</h2>
@@ -82,21 +203,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-700/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">На кого жалоба</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Кто пожаловался</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Дата</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">На кого/От кого</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Причина</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Действия</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
                     {reports.filter(r => r.status === 'open').map(report => (
                       <tr key={report.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{getUserName(report.reportedId)} (ID: {report.reportedId})</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{getUserName(report.reporterId)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{new Date(report.timestamp).toLocaleString()}</td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <p className="font-medium text-white">На: {getUserName(report.reportedId)}</p>
+                            <p className="text-gray-400">От: {getUserName(report.reporterId)}</p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{report.reason}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
                            <button onClick={() => resolveReport(report.id)} className="text-green-400 hover:text-green-300">Закрыть</button>
-                           <button onClick={() => updateUser({id: report.reportedId, isBlocked: true})} className="text-red-400 hover:text-red-300">Заблокировать</button>
+                           <button onClick={() => handleBlockUser(users.find(u => u.id === report.reportedId)!)} className="text-red-400 hover:text-red-300">Заблок.</button>
                         </td>
                       </tr>
                     ))}
@@ -138,61 +260,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
         </div>
       )}
 
-      {activeTab === 'users' && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Все пользователи ({users.length})</h2>
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700">
-                  <thead className="bg-gray-700/50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Пользователь</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Пол</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Статус</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {users.filter(u => u.id !== ADMIN_ID).map(user => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrls?.[0] || `https://i.pravatar.cc/100?u=${user.id}`} alt="" />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-white">{user.name} (@{user.username})</div>
-                              <div className="text-sm text-gray-400">ID: {user.id}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {user.gender === 'male' ? 'М' : 'Ж'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center space-x-2">
-                                {user.isVerified && <span title="Верифицирован"><VerifiedIcon className="w-5 h-5"/></span>}
-                                {user.isPremium && <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-500 text-yellow-900">Премиум</span>}
-                                {user.isBlocked && <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-500 text-red-900">Блокирован</span>}
-                            </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
-                          <button onClick={() => updateUser({id: user.id, isVerified: !user.isVerified})} className="text-indigo-400 hover:text-indigo-300">
-                            {user.isVerified ? 'Снять вериф.' : 'Верифиц.'}
-                          </button>
-                          <button onClick={() => updateUser({id: user.id, isBlocked: !user.isBlocked})} className="text-red-400 hover:text-red-300">
-                            {user.isBlocked ? 'Разблок.' : 'Заблок.'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-            </div>
-          </div>
-        </div>
-      )}
-
       {activeTab === 'ratings' && (
          <div>
           <h2 className="text-xl font-semibold mb-4">Все оценки ({ratings.length})</h2>
@@ -230,7 +297,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
 
       {activeTab === 'tickets' && (
         <div>
-            <h2 className="text-xl font-semibold mb-4">Тикеты поддержки ({tickets.length})</h2>
+            <h2 className="text-xl font-semibold mb-4">Тикеты поддержки ({openTicketsCount} открытых)</h2>
             <div className="space-y-4">
                 {tickets.map(ticket => (
                     <div key={ticket.id} className="bg-gray-800 rounded-lg p-4">

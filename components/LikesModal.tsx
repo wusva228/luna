@@ -1,6 +1,6 @@
 import React from 'react';
 import type { User } from '../types';
-import { PremiumIcon, VerifiedIcon } from './icons';
+import { PremiumIcon } from './icons';
 
 interface LikesModalProps {
   isOpen: boolean;
@@ -8,27 +8,33 @@ interface LikesModalProps {
   currentUser: User;
   getLikers: (userId: number) => User[];
   onUpgrade: () => void;
+  onViewProfile: (user: User) => void;
 }
 
-const LikerCard: React.FC<{ user: User, isBlurred: boolean }> = ({ user, isBlurred }) => {
+const LikerCard: React.FC<{ user: User, isBlurred: boolean, onClick: () => void }> = ({ user, isBlurred, onClick }) => {
     const photoUrl = user.photoUrls && user.photoUrls.length > 0 ? user.photoUrls[0] : `https://i.pravatar.cc/150?u=${user.id}`;
     return (
-        <div className="relative rounded-lg overflow-hidden bg-gray-800">
+        <button onClick={onClick} className="relative rounded-lg overflow-hidden bg-gray-800 w-full block text-left group">
             <img 
                 src={photoUrl} 
                 alt={user.name} 
                 className={`w-full h-32 object-cover transition-all duration-300 ${isBlurred ? 'blur-md' : ''}`} 
             />
             {!isBlurred && (
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-2">
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-2 transition-opacity opacity-100 group-hover:opacity-100">
                     <p className="text-white font-bold text-sm truncate">{user.name}, {user.age}</p>
                  </div>
             )}
-        </div>
+            {isBlurred && (
+                 <div className="absolute inset-0 flex items-center justify-center">
+                    <PremiumIcon className="w-8 h-8 text-yellow-400" />
+                 </div>
+            )}
+        </button>
     );
 };
 
-export const LikesModal: React.FC<LikesModalProps> = ({ isOpen, onClose, currentUser, getLikers, onUpgrade }) => {
+export const LikesModal: React.FC<LikesModalProps> = ({ isOpen, onClose, currentUser, getLikers, onUpgrade, onViewProfile }) => {
   if (!isOpen) return null;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -36,6 +42,14 @@ export const LikesModal: React.FC<LikesModalProps> = ({ isOpen, onClose, current
   };
 
   const likers = getLikers(currentUser.id);
+
+  const handleCardClick = (user: User, index: number) => {
+    if(!currentUser.isPremium && index > 0) {
+        onUpgrade();
+    } else {
+        onViewProfile(user);
+    }
+  };
 
   return (
     <div
@@ -53,13 +67,14 @@ export const LikesModal: React.FC<LikesModalProps> = ({ isOpen, onClose, current
             <p className="text-gray-400 mt-4 text-center">Пока никто не выразил вам симпатию. Не переживайте, они скоро появятся!</p>
         ) : (
             <>
-                <p className="text-gray-400 mt-2 mb-4">Эти люди оценили вас высоко. Может, стоит присмотреться?</p>
+                <p className="text-gray-400 mt-2 mb-4">Эти люди оценили вас высоко. Нажмите, чтобы посмотреть профиль.</p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto pr-2">
                     {likers.map((liker, index) => (
                         <LikerCard 
                             key={liker.id} 
                             user={liker} 
                             isBlurred={!currentUser.isPremium && index > 0} 
+                            onClick={() => handleCardClick(liker, index)}
                         />
                     ))}
                 </div>

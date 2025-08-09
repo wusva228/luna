@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User } from '../types';
 
 interface RegistrationPageProps {
@@ -10,17 +10,37 @@ interface RegistrationPageProps {
     photo_url?: string;
   };
   onRegister: (user: User) => void;
+  updateUser: (user: Partial<User>) => void;
 }
 
-export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser, onRegister }) => {
+export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser, onRegister, updateUser }) => {
   const [email, setEmail] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [bio, setBio] = useState('Привет в Luna Dating! Ищу с кем познакомиться.');
+  const [location, setLocation] = useState<{lat: number, lon: number} | null>(null);
+  const [city, setCity] = useState<string | undefined>(undefined);
+  const [shareLocation, setShareLocation] = useState(true);
   
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [zodiacSign, setZodiacSign] = useState('');
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation({ lat: latitude, lon: longitude });
+        // In a real app, you would use a reverse geocoding API here.
+        // For now, we'll just store coords.
+        setCity("Местоположение определено"); 
+      },
+      (error) => {
+        console.error("Ошибка получения геолокации:", error);
+        alert("Не удалось получить вашу геолокацию. Вы можете продолжить без нее.");
+      }
+    );
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +66,10 @@ export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser
       isPremium: false,
       isBlocked: false,
       lastLogin: Date.now(),
+      location: location || undefined,
+      city,
+      shareLocation,
+      isAgeVerified: false,
       height: height ? parseInt(height) : undefined,
       weight: weight ? parseInt(weight) : undefined,
       zodiacSign: zodiacSign || undefined,
@@ -68,28 +92,7 @@ export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4 text-left">
           <h3 className="text-lg font-semibold border-b border-gray-700 pb-2">Основная информация</h3>
-          <div>
-            <label htmlFor="username" className="text-sm font-medium text-gray-300">Имя пользователя Telegram</label>
-            <input
-              id="username"
-              type="text"
-              value={telegramUser.username ? `@${telegramUser.username}` : '(Не установлено)'}
-              disabled
-              className="mt-1 block w-full bg-gray-800 border border-gray-700 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none sm:text-sm disabled:opacity-70"
-            />
-             {!telegramUser.username && <p className="text-xs text-yellow-400 mt-1">Пожалуйста, установите публичный username в настройках Telegram.</p>}
-          </div>
-          <div>
-            <label htmlFor="name" className="text-sm font-medium text-gray-300">Отображаемое имя</label>
-            <input
-              id="name"
-              type="text"
-              defaultValue={`${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim()}
-              disabled
-              className="mt-1 block w-full bg-gray-800 border border-gray-700 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none sm:text-sm disabled:opacity-70"
-            />
-             <p className="text-xs text-gray-400 mt-1">Имя можно будет изменить позже в профиле.</p>
-          </div>
+          
            <div>
             <label className="text-sm font-medium text-gray-300">Ваш пол <span className="text-red-500">*</span></label>
             <div className="mt-2 grid grid-cols-2 gap-3">
@@ -140,6 +143,15 @@ export const RegistrationPage: React.FC<RegistrationPageProps> = ({ telegramUser
              <div>
                 <label htmlFor="zodiacSign" className="text-sm font-medium text-gray-300">Знак зодиака</label>
                 <input id="zodiacSign" type="text" value={zodiacSign} onChange={e => setZodiacSign(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3" />
+            </div>
+
+             <h3 className="text-lg font-semibold border-b border-gray-700 pb-2 pt-4">Приватность</h3>
+             <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
+                <label htmlFor="shareLocation" className="text-sm font-medium text-gray-300">Показывать меня на карте</label>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="shareLocation" checked={shareLocation} onChange={e => setShareLocation(e.target.checked)} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
             </div>
 
           <div className="pt-2">

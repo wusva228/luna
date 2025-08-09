@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { User, Rating, Ticket, PremiumRequest, Notification, Report } from '../types';
+import type { User, Rating, Ticket, PremiumRequest, Notification, Report, AgeVerificationRequest, UnbanRequest } from '../types';
+import { calculateDistance } from '../utils/geolocation';
 
 const ADMIN_ID = 7264453091;
 
@@ -25,11 +26,14 @@ const setInStorage = <T>(key: string, value: T) => {
 
 
 const initialUsers: User[] = [
-  { id: ADMIN_ID, username: 'wusva', name: 'Администратор', email: 'admin@luna.app', age: 30, gender: 'male', bio: 'Обеспечиваю порядок и веселье в Luna Dating.', photoUrls: ['https://i.pravatar.cc/400?u=admin'], isVerified: true, isPremium: true, isBlocked: false, lastLogin: Date.now() },
-  { id: 101, username: 'jessica_art', name: 'Джессика', email: 'jess@example.com', age: 24, gender: 'female', bio: 'Люблю искусство, музыку и спонтанные приключения. Ищу кого-то с хорошим чувством юмора.', photoUrls: ['https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?q=80&w=1887&auto=format&fit=crop'], isVerified: true, isPremium: true, isBlocked: false, lastLogin: 0, height: 170, zodiacSign: 'Весы', eyeColor: 'Голубой' },
-  { id: 102, username: 'mike_climbs', name: 'Майк', email: 'mike@example.com', age: 28, gender: 'male', bio: 'Днем программист, по выходным скалолаз. Моя собака - мой лучший друг.', photoUrls: ['https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1887&auto=format&fit=crop'], isVerified: false, isPremium: false, isBlocked: false, lastLogin: 0, height: 182, weight: 80, preferences: 'Горы, код, собаки' },
-  { id: 103, username: 'chloe_travels', name: 'Хлоя', email: 'chloe@example.com', age: 26, gender: 'female', bio: 'Путешественница и гурман. Вероятно, смогу победить тебя в Mario Kart.', photoUrls: ['https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=1961&auto=format&fit=crop'], isVerified: false, isPremium: false, isBlocked: false, lastLogin: 0, zodiacSign: 'Стрелец', badHabits: 'Прокрастинация' },
-  { id: 104, username: 'david_fit', name: 'Давид', email: 'david@example.com', age: 31, gender: 'male', bio: 'Фитнес-энтузиаст и начинающий шеф-повар. Верю, что хороший разговор — лучшее первое свидание.', photoUrls: ['https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?q=80&w=2070&auto=format&fit=crop'], isVerified: true, isPremium: false, isBlocked: false, lastLogin: 0, height: 185, weight: 85 },
+  { id: ADMIN_ID, username: 'wusva', name: 'Администратор', email: 'admin@luna.app', age: 30, gender: 'male', bio: 'Обеспечиваю порядок и веселье в Luna Dating.', photoUrls: ['https://i.pravatar.cc/400?u=admin'], isVerified: true, isPremium: true, isBlocked: false, lastLogin: Date.now(), shareLocation: true, location: { lat: 55.7558, lon: 37.6176 }, city: 'Москва', isAgeVerified: true },
+  { id: 101, username: 'jessica_art', name: 'Джессика', email: 'jess@example.com', age: 24, gender: 'female', bio: 'Люблю искусство, музыку и спонтанные приключения. Ищу кого-то с хорошим чувством юмора.', photoUrls: ['https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?q=80&w=1887&auto=format&fit=crop'], isVerified: true, isPremium: true, isBlocked: false, lastLogin: 0, height: 170, zodiacSign: 'Весы', eyeColor: 'Голубой', shareLocation: true, location: { lat: 55.76, lon: 37.62 }, city: 'Москва', isAgeVerified: true },
+  { id: 102, username: 'mike_climbs', name: 'Майк', email: 'mike@example.com', age: 28, gender: 'male', bio: 'Днем программист, по выходным скалолаз. Моя собака - мой лучший друг.', photoUrls: ['https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1887&auto=format&fit=crop'], isVerified: false, isPremium: false, isBlocked: false, lastLogin: 0, height: 182, weight: 80, preferences: 'Горы, код, собаки', shareLocation: true, location: { lat: 55.75, lon: 37.61 }, city: 'Москва', isAgeVerified: false },
+  { id: 103, username: 'chloe_travels', name: 'Хлоя', email: 'chloe@example.com', age: 26, gender: 'female', bio: 'Путешественница и гурман. Вероятно, смогу победить тебя в Mario Kart.', photoUrls: ['https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=1961&auto=format&fit=crop'], isVerified: false, isPremium: false, isBlocked: false, lastLogin: 0, zodiacSign: 'Стрелец', badHabits: 'Прокрастинация', shareLocation: false, isAgeVerified: false },
+  { id: 104, username: 'david_fit', name: 'Давид', email: 'david@example.com', age: 31, gender: 'male', bio: 'Фитнес-энтузиаст и начинающий шеф-повар. Верю, что хороший разговор — лучшее первое свидание.', photoUrls: ['https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?q=80&w=2070&auto=format&fit=crop'], isVerified: true, isPremium: false, isBlocked: false, lastLogin: 0, height: 185, weight: 85, shareLocation: true, location: { lat: 59.9343, lon: 30.3351 }, city: 'Санкт-Петербург', isAgeVerified: true },
+  { id: 105, name: 'София', username: 'sophia_reads', email: 'sophia@mail.ru', age: 22, gender: 'female', bio: 'Библиотекарь с душой панк-рокера. Обсудим последнюю книгу или сходим на концерт?', photoUrls: ['https://images.unsplash.com/photo-1554151228-14d9def656e4?q=80&w=1886&auto=format&fit=crop'], isVerified: false, isPremium: false, isBlocked: false, lastLogin: 0, shareLocation: true, location: { lat: 59.94, lon: 30.34 }, city: 'Санкт-Петербург', isAgeVerified: false },
+  { id: 106, name: 'Иван', username: 'ivan_bakes', email: 'ivan@mail.ru', age: 29, gender: 'male', bio: 'Пеку лучший в городе хлеб. Могу научить, если пообещаешь делиться.', photoUrls: ['https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=1887&auto=format&fit=crop'], isVerified: false, isPremium: false, isBlocked: true, banReason: 'Ненормативная лексика в профиле.', lastLogin: 0, shareLocation: false, isAgeVerified: false },
+  { id: 107, name: 'Елена', username: 'elena_yoga', email: 'elena@mail.ru', age: 33, gender: 'female', bio: 'Инструктор по йоге. Ищу гармонию во всем, включая отношения.', photoUrls: ['https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1888&auto=format&fit=crop'], isVerified: true, isPremium: true, isBlocked: false, lastLogin: 0, shareLocation: true, location: { lat: 55.758, lon: 37.615 }, city: 'Москва', isAgeVerified: true },
 ];
 
 const initialRatings: Rating[] = [
@@ -37,13 +41,12 @@ const initialRatings: Rating[] = [
     { raterId: 103, ratedId: 102, score: 7, isSuperLike: false, timestamp: Date.now() - 300000 },
     { raterId: 101, ratedId: 102, score: 8, isSuperLike: false, timestamp: Date.now() - 100000 }, // Mutual like
 ];
-
-const initialTickets: Ticket[] = [
-    { id: 't1', userId: 102, userName: 'Майк', subject: 'Предложение функции', message: 'Было бы круто иметь видео-профили! Планируете добавить такое?', status: 'open', timestamp: Date.now() - 86400000 },
-];
-
+const initialTickets: Ticket[] = [];
 const initialPremiumRequests: PremiumRequest[] = [];
 const initialReports: Report[] = [];
+const initialAgeVerificationRequests: AgeVerificationRequest[] = [];
+const initialUnbanRequests: UnbanRequest[] = [];
+
 
 export const usePersistentData = () => {
     const [users, setUsers] = useState<User[]>(() => getFromStorage('luna_users', initialUsers));
@@ -51,12 +54,16 @@ export const usePersistentData = () => {
     const [tickets, setTickets] = useState<Ticket[]>(() => getFromStorage('luna_tickets', initialTickets));
     const [premiumRequests, setPremiumRequests] = useState<PremiumRequest[]>(() => getFromStorage('luna_premium_requests', initialPremiumRequests));
     const [reports, setReports] = useState<Report[]>(() => getFromStorage('luna_reports', initialReports));
+    const [ageVerificationRequests, setAgeVerificationRequests] = useState<AgeVerificationRequest[]>(() => getFromStorage('luna_age_verification_requests', initialAgeVerificationRequests));
+    const [unbanRequests, setUnbanRequests] = useState<UnbanRequest[]>(() => getFromStorage('luna_unban_requests', initialUnbanRequests));
 
     useEffect(() => { setInStorage('luna_users', users); }, [users]);
     useEffect(() => { setInStorage('luna_ratings', ratings); }, [ratings]);
     useEffect(() => { setInStorage('luna_tickets', tickets); }, [tickets]);
     useEffect(() => { setInStorage('luna_premium_requests', premiumRequests); }, [premiumRequests]);
     useEffect(() => { setInStorage('luna_reports', reports); }, [reports]);
+    useEffect(() => { setInStorage('luna_age_verification_requests', ageVerificationRequests); }, [ageVerificationRequests]);
+    useEffect(() => { setInStorage('luna_unban_requests', unbanRequests); }, [unbanRequests]);
 
     const updateUser = useCallback((updatedUserData: Partial<User>) => {
         setUsers(currentUsers => currentUsers.map(u => u.id === updatedUserData.id ? { ...u, ...updatedUserData } : u));
@@ -109,6 +116,42 @@ export const usePersistentData = () => {
     const resolveReport = useCallback((reportId: string) => {
         setReports(current => current.map(r => r.id === reportId ? {...r, status: 'resolved'} : r));
     }, []);
+    
+    const addAgeVerificationRequest = useCallback((userId: number, userName: string, photoUrl: string) => {
+        setAgeVerificationRequests(current => {
+            if (current.some(r => r.userId === userId && r.status === 'pending')) return current;
+            const newRequest: AgeVerificationRequest = { id: `age_v_${Date.now()}`, userId, userName, photoUrl, status: 'pending', timestamp: Date.now() };
+            return [newRequest, ...current];
+        });
+    }, []);
+
+    const handleAgeVerificationRequest = useCallback((requestId: string, isApproved: boolean) => {
+        const request = ageVerificationRequests.find(r => r.id === requestId);
+        if (!request) return;
+
+        if (isApproved) {
+            updateUser({ id: request.userId, isAgeVerified: true });
+        }
+        setAgeVerificationRequests(current => current.map(r => r.id === requestId ? { ...r, status: isApproved ? 'approved' : 'rejected' } : r));
+    }, [ageVerificationRequests, updateUser]);
+
+    const addUnbanRequest = useCallback((userId: number, userName: string, reason: string) => {
+         setUnbanRequests(current => {
+            if (current.some(r => r.userId === userId && r.status === 'pending')) return current;
+            const newRequest: UnbanRequest = { id: `unban_${Date.now()}`, userId, userName, reason, status: 'pending', timestamp: Date.now() };
+            return [newRequest, ...current];
+        });
+    }, []);
+
+    const handleUnbanRequest = useCallback((requestId: string, isApproved: boolean) => {
+        const request = unbanRequests.find(r => r.id === requestId);
+        if (!request) return;
+
+        if (isApproved) {
+            updateUser({ id: request.userId, isBlocked: false, banReason: undefined });
+        }
+        setUnbanRequests(current => current.map(r => r.id === requestId ? { ...r, status: isApproved ? 'approved' : 'rejected' } : r));
+    }, [unbanRequests, updateUser]);
 
     const getLikers = useCallback((userId: number): User[] => {
         const likerIds = new Set(ratings.filter(r => r.ratedId === userId && r.score >= 6).map(r => r.raterId));
@@ -134,10 +177,23 @@ export const usePersistentData = () => {
         }
         return [];
     }, [ratings]);
+    
+    const getDistanceToUser = useCallback((currentUser: User, otherUser: User): number | null => {
+        if (!currentUser.location || !otherUser.location) {
+            return null;
+        }
+        return calculateDistance(currentUser.location.lat, currentUser.location.lon, otherUser.location.lat, otherUser.location.lon);
+    }, []);
 
     const updateLastLogin = useCallback((userId: number) => {
         updateUser({ id: userId, lastLogin: Date.now() });
     }, [updateUser]);
 
-    return { users, ratings, tickets, premiumRequests, reports, updateUser, addUser, addRating, addTicket, updateTicketStatus, addPremiumRequest, approvePremiumRequest, getNotificationsForUser, updateLastLogin, checkMatch, getLikers, addReport, replyToTicket, resolveReport };
+    return { 
+        users, ratings, tickets, premiumRequests, reports, ageVerificationRequests, unbanRequests,
+        updateUser, addUser, addRating, addTicket, updateTicketStatus, addPremiumRequest, 
+        approvePremiumRequest, getNotificationsForUser, updateLastLogin, checkMatch, getLikers, 
+        addReport, replyToTicket, resolveReport, getDistanceToUser, addAgeVerificationRequest, 
+        handleAgeVerificationRequest, addUnbanRequest, handleUnbanRequest 
+    };
 };

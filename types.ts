@@ -4,13 +4,20 @@ export interface User {
   name: string;
   email: string;
   age: number;
-  gender: 'male' | 'female'; // Добавлено обязательное поле пола
+  gender: 'male' | 'female';
   bio: string;
-  photoUrls: string[];
-  isVerified: boolean;
+  photoUrls: string[]; // Can be standard URLs or base64 data URLs
+  isVerified: boolean; // Admin-granted verification
   isPremium: boolean;
   isBlocked: boolean;
+  banReason?: string;
   lastLogin: number; // timestamp
+  
+  // Geolocation
+  location?: { lat: number; lon: number; };
+  city?: string; // e.g., "Moscow"
+  shareLocation: boolean;
+  
   // New detailed profile fields
   height?: number;
   weight?: number;
@@ -18,6 +25,10 @@ export interface User {
   eyeColor?: string;
   preferences?: string;
   badHabits?: string;
+
+  // Age verification
+  isAgeVerified: boolean;
+  ageVerificationPhotoUrl?: string; // Data URL of the document
 }
 
 export interface Rating {
@@ -56,6 +67,24 @@ export interface Report {
     status: 'open' | 'resolved';
 }
 
+export interface AgeVerificationRequest {
+    id: string;
+    userId: number;
+    userName: string;
+    photoUrl: string; // Data URL of the document photo
+    status: 'pending' | 'approved' | 'rejected';
+    timestamp: number;
+}
+
+export interface UnbanRequest {
+    id: string;
+    userId: number;
+    userName: string;
+    reason: string;
+    status: 'pending' | 'approved' | 'rejected';
+    timestamp: number;
+}
+
 export interface Notification {
   id: string;
   message: string;
@@ -64,4 +93,4 @@ export interface Notification {
 }
 
 
-export type AppView = 'meet' | 'profile' | 'admin' | 'registration';
+export type AppView = 'meet' | 'profile' | 'admin' | 'registration' | 'map';

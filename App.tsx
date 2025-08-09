@@ -10,6 +10,10 @@ import { TicketModal } from './components/TicketModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { NotificationBanner } from './components/NotificationBanner';
 import { LikesModal } from './components/LikesModal';
+import { BannedScreen } from './components/BannedScreen';
+import { AgeVerificationModal } from './components/AgeVerificationModal';
+import { MapPage } from './components/MapPage';
+import { ViewProfileModal } from './components/ViewProfileModal';
 
 
 declare global {
@@ -34,8 +38,13 @@ const App: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Modals state
   const [isTicketModalOpen, setTicketModalOpen] = useState(false);
   const [isLikesModalOpen, setLikesModalOpen] = useState(false);
+  const [isAgeVerificationModalOpen, setAgeVerificationModalOpen] = useState(false);
+  const [viewProfileUser, setViewProfileUser] = useState<User | null>(null);
+
   const [showWelcomeScreen, setShowWelcomeScreen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -44,7 +53,6 @@ const App: React.FC = () => {
     if (tg) {
       tg.ready();
       tg.expand();
-      
       const user = tg.initDataUnsafe?.user;
       
       if (user) {
@@ -52,9 +60,6 @@ const App: React.FC = () => {
         const userExists = data.users.find(u => u.id === user.id);
         if (userExists) {
           setCurrentUserId(user.id);
-          const userNotifications = data.getNotificationsForUser(userExists, () => setLikesModalOpen(true));
-          setNotifications(userNotifications);
-          data.updateLastLogin(user.id);
         }
       } else {
         console.warn("Не удалось получить пользователя из Telegram.");
@@ -62,23 +67,30 @@ const App: React.FC = () => {
       setIsLoading(false);
     } else {
         console.warn("Скрипт Telegram Web App не найден. Запуск в режиме локальной разработки.");
-        const mockDevUser: TelegramUser = { id: 102, first_name: 'Майк (Дев)', username: 'mike_climbs', photo_url: 'https://i.pravatar.cc/400?u=mike' };
+        const mockDevUser: TelegramUser = { id: 101, first_name: 'Джессика', username: 'jessica_art', photo_url: 'https://i.pravatar.cc/400?u=jess' };
         setTelegramUser(mockDevUser);
         const userExists = data.users.find(u => u.id === mockDevUser.id);
          if (userExists) {
           setCurrentUserId(mockDevUser.id);
-          const userNotifications = data.getNotificationsForUser(userExists, () => setLikesModalOpen(true));
-          setNotifications(userNotifications);
-          data.updateLastLogin(mockDevUser.id);
         }
         setIsLoading(false);
     }
   }, []);
-
+  
   const currentUser = useMemo(() => {
     if (!currentUserId) return null;
     return data.users.find(u => u.id === currentUserId);
   }, [data.users, currentUserId]);
+
+  // Handle notifications and login timestamp
+  useEffect(() => {
+    if (currentUser) {
+        const userNotifications = data.getNotificationsForUser(currentUser, () => setLikesModalOpen(true));
+        setNotifications(userNotifications);
+        data.updateLastLogin(currentUser.id);
+    }
+  }, [currentUserId]);
+
 
   const isAdmin = currentUser?.id === ADMIN_ID;
   const [view, setView] = useState<AppView>('meet');
@@ -115,6 +127,13 @@ const App: React.FC = () => {
     setNotifications(current => current.filter(n => n.id !== id));
   };
 
+  const handleVerifyAge = (photoDataUrl: string) => {
+      if(!currentUser) return;
+      data.addAgeVerificationRequest(currentUser.id, currentUser.name, photoDataUrl);
+      setAgeVerificationModalOpen(false);
+      alert('Ваш запрос на верификацию отправлен.');
+  }
+
   if (isLoading) {
     return <div className="h-screen w-screen flex items-center justify-center bg-gray-900 text-white">Подключение к Telegram...</div>;
   }
@@ -123,8 +142,12 @@ const App: React.FC = () => {
     return <WelcomeScreen onClose={handleWelcomeClose} />
   }
 
+  if (currentUser?.isBlocked) {
+      return <BannedScreen user={currentUser} onUnbanRequest={(reason) => data.addUnbanRequest(currentUser.id, currentUser.name, reason)} />
+  }
+
   if (!currentUser && telegramUser) {
-    return <RegistrationPage telegramUser={telegramUser} onRegister={handleRegister} />;
+    return <RegistrationPage telegramUser={telegramUser} onRegister={handleRegister} updateUser={data.updateUser}/>;
   }
 
   if (!currentUser) {
@@ -152,13 +175,17 @@ const App: React.FC = () => {
             ratings={data.ratings} 
             addReport={data.addReport}
             checkMatch={data.checkMatch}
+            getDistanceToUser={data.getDistanceToUser}
         />;
+      case 'map':
+        return <MapPage users={data.users} currentUser={currentUser} />;
       case 'profile':
         return <ProfilePage 
             user={currentUser} 
             tickets={data.tickets}
             updateUser={data.updateUser} 
             onContactAdmin={() => setTicketModalOpen(true)} 
+            onVerifyAge={() => setAgeVerificationModalOpen(true)}
             requestPremium={data.addPremiumRequest} 
             premiumRequest={premiumRequestForUser} 
         />;
@@ -169,11 +196,15 @@ const App: React.FC = () => {
             tickets={data.tickets} 
             premiumRequests={data.premiumRequests} 
             reports={data.reports}
+            ageVerificationRequests={data.ageVerificationRequests}
+            unbanRequests={data.unbanRequests}
             updateUser={data.updateUser} 
             updateTicketStatus={data.updateTicketStatus} 
             approvePremiumRequest={data.approvePremiumRequest}
             replyToTicket={data.replyToTicket}
             resolveReport={data.resolveReport}
+            handleAgeVerificationRequest={data.handleAgeVerificationRequest}
+            handleUnbanRequest={data.handleUnbanRequest}
         /> : <div className="p-8 text-center">Доступ запрещен</div>;
       default:
         return <MeetPage 
@@ -183,6 +214,7 @@ const App: React.FC = () => {
             ratings={data.ratings}
             addReport={data.addReport}
             checkMatch={data.checkMatch}
+            getDistanceToUser={data.getDistanceToUser}
         />;
     }
   };
@@ -210,7 +242,22 @@ const App: React.FC = () => {
         currentUser={currentUser}
         getLikers={data.getLikers}
         onUpgrade={handleUpgradeFromLikes}
+        onViewProfile={(user) => setViewProfileUser(user)}
       />
+      <AgeVerificationModal
+        isOpen={isAgeVerificationModalOpen}
+        onClose={() => setAgeVerificationModalOpen(false)}
+        onSubmit={handleVerifyAge}
+      />
+      {viewProfileUser && (
+        <ViewProfileModal
+            user={viewProfileUser}
+            isOpen={!!viewProfileUser}
+            onClose={() => setViewProfileUser(null)}
+            isMatch={data.checkMatch(currentUser.id, viewProfileUser.id)}
+            distance={data.getDistanceToUser(currentUser, viewProfileUser)}
+        />
+      )}
     </div>
   );
 };
