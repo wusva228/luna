@@ -17,7 +17,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ notifica
         }, 5000); // Auto-dismiss after 5 seconds
 
         return () => clearTimeout(timer);
-    }, [notification]);
+    }, [notification.id]);
 
     const handleDismiss = () => {
         setIsVisible(false);
@@ -27,16 +27,24 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ notifica
         }, 300);
     };
 
+    const handleClick = () => {
+        if(notification.onClick) {
+            notification.onClick();
+        }
+        handleDismiss();
+    }
+
     return (
         <div
-            className={`fixed top-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md z-50 transition-all duration-300 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}
+            className={`fixed top-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md z-50 transition-all duration-300 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'} ${notification.onClick ? 'cursor-pointer' : ''}`}
+            onClick={handleClick}
         >
             <div className="bg-indigo-500 text-white rounded-lg shadow-2xl p-3 flex items-center justify-between">
                 <div className="flex items-center">
                     <PremiumIcon className="w-5 h-5 mr-3 text-yellow-300" />
                     <span className="font-medium text-sm">{notification.message}</span>
                 </div>
-                <button onClick={handleDismiss} className="text-indigo-100 hover:text-white text-xl leading-none">&times;</button>
+                <button onClick={(e) => { e.stopPropagation(); handleDismiss(); }} className="text-indigo-100 hover:text-white text-xl leading-none">&times;</button>
             </div>
         </div>
     );

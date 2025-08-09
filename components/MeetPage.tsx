@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { User, Rating } from '../types';
+import type { User, Rating, Report } from '../types';
 import UserCard from './UserCard';
 
 interface MeetPageProps {
@@ -7,11 +7,13 @@ interface MeetPageProps {
   users: User[];
   addRating: (rating: Rating) => void;
   ratings: Rating[];
+  addReport: (reportedId: number, reason: string, reporterId: number) => void;
+  checkMatch: (userId1: number, userId2: number) => boolean;
 }
 
 type AnimationState = 'idle' | 'left' | 'right';
 
-export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRating, ratings }) => {
+export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRating, ratings, addReport, checkMatch }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animation, setAnimation] = useState<AnimationState>('idle');
   const [cardKey, setCardKey] = useState(0);
@@ -48,6 +50,15 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
     }, 500);
   };
 
+  const handleReport = (reportedId: number) => {
+    addReport(reportedId, 'Жалоба из ленты.', currentUser.id);
+    // Move to the next card after reporting
+    if (currentIndex < usersToRate.length) {
+      setCurrentIndex(prev => prev + 1);
+      setCardKey(Date.now());
+    }
+  };
+
   if (!currentUser.username || currentUser.username.startsWith('user')) {
     return (
       <div className="p-8 text-center flex flex-col items-center justify-center h-full">
@@ -74,7 +85,11 @@ export const MeetPage: React.FC<MeetPageProps> = ({ currentUser, users, addRatin
         <div className="w-full max-w-sm h-[70vh] relative">
           {currentProfile ? (
             <div key={cardKey} className={getAnimationClass()}>
-              <UserCard user={currentProfile} />
+              <UserCard 
+                user={currentProfile}
+                isMatch={checkMatch(currentUser.id, currentProfile.id)}
+                onReport={handleReport}
+              />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center text-gray-400">

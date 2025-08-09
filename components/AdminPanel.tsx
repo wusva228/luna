@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { User, Rating, Ticket, PremiumRequest } from '../types';
+import type { User, Rating, Ticket, PremiumRequest, Report } from '../types';
 import { VerifiedIcon } from './icons';
 
 interface AdminPanelProps {
@@ -7,14 +7,17 @@ interface AdminPanelProps {
   ratings: Rating[];
   tickets: Ticket[];
   premiumRequests: PremiumRequest[];
-  updateUser: (user: User) => void;
+  reports: Report[];
+  updateUser: (user: Partial<User>) => void;
   updateTicketStatus: (ticketId: string, status: 'open' | 'closed') => void;
   approvePremiumRequest: (userId: number) => void;
+  replyToTicket: (ticketId: string, reply: string) => void;
+  resolveReport: (reportId: string) => void;
 }
 
 const ADMIN_ID = 7264453091;
 
-type AdminTab = 'users' | 'ratings' | 'tickets' | 'premium';
+type AdminTab = 'users' | 'ratings' | 'tickets' | 'premium' | 'reports';
 
 const TabButton: React.FC<{label: string; isActive: boolean; onClick: () => void; count?: number}> = ({ label, isActive, onClick, count }) => (
     <button
@@ -25,12 +28,37 @@ const TabButton: React.FC<{label: string; isActive: boolean; onClick: () => void
     </button>
 );
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets, premiumRequests, updateUser, updateTicketStatus, approvePremiumRequest }) => {
+const TicketReplyForm: React.FC<{ ticketId: string, onReply: (ticketId: string, reply: string) => void }> = ({ ticketId, onReply }) => {
+    const [reply, setReply] = useState('');
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!reply.trim()) return;
+        onReply(ticketId, reply);
+        setReply('');
+    };
+    return (
+        <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+            <input 
+                type="text" 
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder="Напишите ответ..."
+                className="flex-grow bg-gray-900 border border-gray-600 rounded-md py-1 px-2 text-white"
+            />
+            <button type="submit" className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm">Ответить</button>
+        </form>
+    );
+};
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets, premiumRequests, reports, updateUser, updateTicketStatus, approvePremiumRequest, replyToTicket, resolveReport }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
 
   const getUserName = (id: number) => users.find(u => u.id === id)?.name || `Пользователь #${id}`;
+  const getUser = (id: number) => users.find(u => u.id === id);
+
   const openTicketsCount = tickets.filter(t => t.status === 'open').length;
   const pendingPremiumCount = premiumRequests.filter(r => r.status === 'pending').length;
+  const openReportsCount = reports.filter(r => r.status === 'open').length;
 
   return (
     <div className="p-4 sm:p-6 pb-24 text-white">
@@ -40,10 +68,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
         <nav className="flex space-x-2 sm:space-x-4 overflow-x-auto" aria-label="Tabs">
             <TabButton label="Пользователи" isActive={activeTab === 'users'} onClick={() => setActiveTab('users')} />
             <TabButton label="Запросы на премиум" isActive={activeTab === 'premium'} onClick={() => setActiveTab('premium')} count={pendingPremiumCount} />
+            <TabButton label="Жалобы" isActive={activeTab === 'reports'} onClick={() => setActiveTab('reports')} count={openReportsCount} />
             <TabButton label="Тикеты" isActive={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} count={openTicketsCount} />
             <TabButton label="Лента оценок" isActive={activeTab === 'ratings'} onClick={() => setActiveTab('ratings')} />
         </nav>
       </div>
+      
+      {activeTab === 'reports' && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Жалобы ({openReportsCount} открытых)</h2>
+          <div className="bg-gray-800 rounded-lg overflow-hidden">
+             <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-700/50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">На кого жалоба</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Кто пожаловался</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Дата</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {reports.filter(r => r.status === 'open').map(report => (
+                      <tr key={report.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{getUserName(report.reportedId)} (ID: {report.reportedId})</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{getUserName(report.reporterId)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{new Date(report.timestamp).toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
+                           <button onClick={() => resolveReport(report.id)} className="text-green-400 hover:text-green-300">Закрыть</button>
+                           <button onClick={() => updateUser({id: report.reportedId, isBlocked: true})} className="text-red-400 hover:text-red-300">Заблокировать</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+             </div>
+          </div>
+        </div>
+      )}
 
        {activeTab === 'premium' && (
         <div>
@@ -95,7 +157,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrl} alt="" />
+                              <img className="h-10 w-10 rounded-full object-cover" src={user.photoUrls[0]} alt="" />
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-white">{user.name} (@{user.username})</div>
@@ -111,10 +173,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                             </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
-                          <button onClick={() => updateUser({...user, isVerified: !user.isVerified})} className="text-indigo-400 hover:text-indigo-300">
+                          <button onClick={() => updateUser({id: user.id, isVerified: !user.isVerified})} className="text-indigo-400 hover:text-indigo-300">
                             {user.isVerified ? 'Снять вериф.' : 'Верифиц.'}
                           </button>
-                          <button onClick={() => updateUser({...user, isBlocked: !user.isBlocked})} className="text-red-400 hover:text-red-300">
+                          <button onClick={() => updateUser({id: user.id, isBlocked: !user.isBlocked})} className="text-red-400 hover:text-red-300">
                             {user.isBlocked ? 'Разблок.' : 'Заблок.'}
                           </button>
                         </td>
@@ -181,13 +243,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ users, ratings, tickets,
                             {ticket.status === 'open' && (
                                 <button
                                     onClick={() => updateTicketStatus(ticket.id, 'closed')}
-                                    className="text-sm bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded-md transition"
+                                    className="text-sm bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md transition"
                                 >
                                     Закрыть тикет
                                 </button>
                             )}
                         </div>
                         <p className="mt-3 pt-3 border-t border-gray-700 text-gray-300 whitespace-pre-wrap">{ticket.message}</p>
+                        
+                        {ticket.reply && (
+                            <div className="mt-2 pt-2 border-t border-gray-700">
+                                <p className="text-sm font-semibold text-indigo-300">Ваш ответ:</p>
+                                <p className="text-sm text-indigo-200 italic">"{ticket.reply}"</p>
+                            </div>
+                        )}
+                        
+                        {ticket.status === 'open' && !ticket.reply && (
+                            <TicketReplyForm ticketId={ticket.id} onReply={replyToTicket} />
+                        )}
                     </div>
                 ))}
             </div>

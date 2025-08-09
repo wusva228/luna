@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { AppView, User, Notification } from './types';
+import type { AppView, User, Notification, Ticket } from './types';
 import { usePersistentData } from './hooks/usePersistentData';
 import { BottomNav } from './components/BottomNav';
 import { MeetPage } from './components/MeetPage';
@@ -9,6 +9,7 @@ import { RegistrationPage } from './components/RegistrationPage';
 import { TicketModal } from './components/TicketModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { NotificationBanner } from './components/NotificationBanner';
+import { LikesModal } from './components/LikesModal';
 
 
 declare global {
@@ -28,12 +29,13 @@ type TelegramUser = {
 const ADMIN_ID = 7264453091;
 
 const App: React.FC = () => {
-  const { users, ratings, tickets, premiumRequests, updateUser, addUser, addRating, addTicket, updateTicketStatus, addPremiumRequest, approvePremiumRequest, getNotificationsForUser, updateLastLogin } = usePersistentData();
+  const data = usePersistentData();
   
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTicketModalOpen, setTicketModalOpen] = useState(false);
+  const [isLikesModalOpen, setLikesModalOpen] = useState(false);
   const [showWelcomeScreen, setShowWelcomeScreen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -47,11 +49,12 @@ const App: React.FC = () => {
       
       if (user) {
         setTelegramUser(user);
-        const userExists = users.find(u => u.id === user.id);
+        const userExists = data.users.find(u => u.id === user.id);
         if (userExists) {
           setCurrentUserId(user.id);
-          setNotifications(getNotificationsForUser(userExists));
-          updateLastLogin(user.id);
+          const userNotifications = data.getNotificationsForUser(userExists, () => setLikesModalOpen(true));
+          setNotifications(userNotifications);
+          data.updateLastLogin(user.id);
         }
       } else {
         console.warn("Не удалось получить пользователя из Telegram.");
@@ -59,13 +62,14 @@ const App: React.FC = () => {
       setIsLoading(false);
     } else {
         console.warn("Скрипт Telegram Web App не найден. Запуск в режиме локальной разработки.");
-        const mockDevUser: TelegramUser = { id: 102, first_name: 'Майк (Дев)', username: 'mike_climbs' };
+        const mockDevUser: TelegramUser = { id: 102, first_name: 'Майк (Дев)', username: 'mike_climbs', photo_url: 'https://i.pravatar.cc/400?u=mike' };
         setTelegramUser(mockDevUser);
-        const userExists = users.find(u => u.id === mockDevUser.id);
+        const userExists = data.users.find(u => u.id === mockDevUser.id);
          if (userExists) {
           setCurrentUserId(mockDevUser.id);
-          setNotifications(getNotificationsForUser(userExists));
-          updateLastLogin(mockDevUser.id);
+          const userNotifications = data.getNotificationsForUser(userExists, () => setLikesModalOpen(true));
+          setNotifications(userNotifications);
+          data.updateLastLogin(mockDevUser.id);
         }
         setIsLoading(false);
     }
@@ -73,8 +77,8 @@ const App: React.FC = () => {
 
   const currentUser = useMemo(() => {
     if (!currentUserId) return null;
-    return users.find(u => u.id === currentUserId);
-  }, [users, currentUserId]);
+    return data.users.find(u => u.id === currentUserId);
+  }, [data.users, currentUserId]);
 
   const isAdmin = currentUser?.id === ADMIN_ID;
   const [view, setView] = useState<AppView>('meet');
@@ -86,7 +90,7 @@ const App: React.FC = () => {
   }, [currentUser, isAdmin]);
 
   const handleRegister = (newUser: User) => {
-    addUser(newUser);
+    data.addUser(newUser);
     setCurrentUserId(newUser.id);
     setShowWelcomeScreen(true);
   };
@@ -97,7 +101,7 @@ const App: React.FC = () => {
 
   const handleCreateTicket = (subject: string, message: string) => {
     if(!currentUser) return;
-    addTicket({
+    data.addTicket({
       userId: currentUser.id,
       userName: currentUser.name,
       subject,
@@ -110,7 +114,6 @@ const App: React.FC = () => {
   const handleNotificationDismiss = (id: string) => {
     setNotifications(current => current.filter(n => n.id !== id));
   };
-
 
   if (isLoading) {
     return <div className="h-screen w-screen flex items-center justify-center bg-gray-900 text-white">Подключение к Telegram...</div>;
@@ -132,20 +135,59 @@ const App: React.FC = () => {
       </div>
     );
   }
+  
+  const handleUpgradeFromLikes = () => {
+    setLikesModalOpen(false);
+    setView('profile');
+  };
 
   const renderView = () => {
-    const premiumRequestForUser = premiumRequests.find(r => r.userId === currentUser.id);
+    const premiumRequestForUser = data.premiumRequests.find(r => r.userId === currentUser.id);
     switch (view) {
       case 'meet':
-        return <MeetPage currentUser={currentUser} users={users} addRating={addRating} ratings={ratings} />;
+        return <MeetPage 
+            currentUser={currentUser} 
+            users={data.users} 
+            addRating={data.addRating} 
+            ratings={data.ratings} 
+            addReport={data.addReport}
+            checkMatch={data.checkMatch}
+        />;
       case 'profile':
-        return <ProfilePage user={currentUser} updateUser={updateUser} onContactAdmin={() => setTicketModalOpen(true)} requestPremium={addPremiumRequest} premiumRequest={premiumRequestForUser} />;
+        return <ProfilePage 
+            user={currentUser} 
+            tickets={data.tickets}
+            updateUser={data.updateUser} 
+            onContactAdmin={() => setTicketModalOpen(true)} 
+            requestPremium={data.addPremiumRequest} 
+            premiumRequest={premiumRequestForUser} 
+        />;
       case 'admin':
-        return isAdmin ? <AdminPanel users={users} ratings={ratings} tickets={tickets} premiumRequests={premiumRequests} updateUser={updateUser} updateTicketStatus={updateTicketStatus} approvePremiumRequest={approvePremiumRequest} /> : <div className="p-8 text-center">Доступ запрещен</div>;
+        return isAdmin ? <AdminPanel 
+            users={data.users} 
+            ratings={data.ratings} 
+            tickets={data.tickets} 
+            premiumRequests={data.premiumRequests} 
+            reports={data.reports}
+            updateUser={data.updateUser} 
+            updateTicketStatus={data.updateTicketStatus} 
+            approvePremiumRequest={data.approvePremiumRequest}
+            replyToTicket={data.replyToTicket}
+            resolveReport={data.resolveReport}
+        /> : <div className="p-8 text-center">Доступ запрещен</div>;
       default:
-        return <MeetPage currentUser={currentUser} users={users} addRating={addRating} ratings={ratings} />;
+        return <MeetPage 
+            currentUser={currentUser} 
+            users={data.users} 
+            addRating={data.addRating} 
+            ratings={data.ratings}
+            addReport={data.addReport}
+            checkMatch={data.checkMatch}
+        />;
     }
   };
+  
+  const userTickets = data.tickets.filter(t => t.userId === currentUser.id);
 
   return (
     <div className="h-screen w-screen bg-gray-900 font-sans flex flex-col overflow-hidden">
@@ -160,10 +202,15 @@ const App: React.FC = () => {
         isOpen={isTicketModalOpen}
         onClose={() => setTicketModalOpen(false)}
         onSubmit={handleCreateTicket}
+        userTickets={userTickets}
       />
-       <div className="fixed bottom-16 left-1/2 -translate-x-1/2 text-xs text-gray-600 z-0">
-          Made by WUSVA
-       </div>
+      <LikesModal
+        isOpen={isLikesModalOpen}
+        onClose={() => setLikesModalOpen(false)}
+        currentUser={currentUser}
+        getLikers={data.getLikers}
+        onUpgrade={handleUpgradeFromLikes}
+      />
     </div>
   );
 };

@@ -5,11 +5,18 @@ export interface User {
   email: string;
   age: number;
   bio: string;
-  photoUrl: string;
+  photoUrls: string[];
   isVerified: boolean;
   isPremium: boolean;
   isBlocked: boolean;
   lastLogin: number; // timestamp
+  // New detailed profile fields
+  height?: number;
+  weight?: number;
+  zodiacSign?: string;
+  eyeColor?: string;
+  preferences?: string;
+  badHabits?: string;
 }
 
 export interface Rating {
@@ -17,7 +24,7 @@ export interface Rating {
   ratedId: number;
   score: number;
   isSuperLike: boolean;
-  timestamp: number; // Use number for easier localStorage serialization
+  timestamp: number;
 }
 
 export interface Ticket {
@@ -28,6 +35,7 @@ export interface Ticket {
   message: string;
   status: 'open' | 'closed';
   timestamp: number;
+  reply?: string; // Admin's reply
 }
 
 export interface PremiumRequest {
@@ -38,10 +46,20 @@ export interface PremiumRequest {
   timestamp: number;
 }
 
+export interface Report {
+    id: string;
+    reporterId: number;
+    reportedId: number;
+    reason: string;
+    timestamp: number;
+    status: 'open' | 'resolved';
+}
+
 export interface Notification {
   id: string;
   message: string;
   type: 'like' | 'info';
+  onClick?: () => void;
 }
 
 
