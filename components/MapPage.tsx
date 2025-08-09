@@ -3,6 +3,8 @@ import type { User } from '../types';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { divIcon, LatLngExpression } from 'leaflet';
 import ReactDOMServer from 'react-dom/server';
+import 'leaflet/dist/leaflet.css';
+
 
 interface MapPageProps {
   users: User[];
