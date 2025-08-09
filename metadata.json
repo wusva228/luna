@@ -1,0 +1,5 @@
+{
+  "name": "TeleMeet - Find Your Match",
+  "description": "A dating application for Telegram where users can create profiles, meet new people, and rate each other. Features include premium subscriptions for enhanced abilities and a comprehensive admin panel for user management.",
+  "requestFramePermissions": []
+}

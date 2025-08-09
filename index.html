@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>TeleMeet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Add Babel for in-browser JSX/TSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      :root {
+        --bg-color: #111827; /* gray-900 */
+        --primary-accent: #818cf8; /* indigo-400 */
+        --safe-area-inset-top: env(safe-area-inset-top);
+        --safe-area-inset-bottom: env(safe-area-inset-bottom);
+      }
+      body {
+        background-color: var(--bg-color);
+        padding-top: var(--safe-area-inset-top);
+        padding-bottom: var(--safe-area-inset-bottom);
+      }
+      /* Card animations */
+      @keyframes slideInUp {
+        from { transform: translateY(50px) scale(0.95); opacity: 0; }
+        to { transform: translateY(0) scale(1); opacity: 1; }
+      }
+      @keyframes slideOutLeft {
+        from { transform: translateX(0) rotate(0); opacity: 1; }
+        to { transform: translateX(-150%) rotate(-20deg); opacity: 0; }
+      }
+      @keyframes slideOutRight {
+        from { transform: translateX(0) rotate(0); opacity: 1; }
+        to { transform: translateX(150%) rotate(20deg); opacity: 0; }
+      }
+      .slide-in-up {
+        animation: slideInUp 0.4s ease-out forwards;
+      }
+      .slide-out-left {
+        animation: slideOutLeft 0.5s ease-out forwards;
+      }
+      .slide-out-right {
+        animation: slideOutRight 0.5s ease-out forwards;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.1",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.13.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-900 text-white antialiased">
+    <div id="root"></div>
+    <!-- Changed type to "text/babel" and added data-type="module" for Babel to transpile and run the TSX module -->
+    <script type="text/babel" data-type="module" src="/index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
