@@ -7,6 +7,6 @@
     "react-dom": "18.3.1"
   },
   "scripts": {
-    "build": "echo 'No build required'"
+    "build": "mkdir public && cp -r components services utils index.html index.tsx metadata.json package.json types.ts public"
   }
 }
