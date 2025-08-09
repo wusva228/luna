@@ -41,8 +41,15 @@ const initialUsers: User[] = [
 
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-const createApi = <T>(storageKey: string, initialData: T[]) => {
+const createApi = <T extends {id: any}>(storageKey: string, initialData: T[]) => {
     let data = getFromStorage(storageKey, initialData);
+
+    // KEY FIX: Validate data from localStorage. If it's corrupted, reset to default.
+    if (!Array.isArray(data)) {
+        console.warn(`Corrupted data in localStorage for key "${storageKey}". Resetting to default.`);
+        data = initialData;
+        setInStorage(storageKey, data);
+    }
 
     return {
         async getAll(): Promise<T[]> {
@@ -51,7 +58,7 @@ const createApi = <T>(storageKey: string, initialData: T[]) => {
         },
         async getById(id: any): Promise<T | undefined> {
             await simulateDelay(20);
-            return (data as any[]).find(item => item.id === id);
+            return data.find(item => item.id === id);
         },
         async create(item: Omit<T, 'id'> | T): Promise<T> {
             await simulateDelay(50);
@@ -64,7 +71,7 @@ const createApi = <T>(storageKey: string, initialData: T[]) => {
             await simulateDelay(50);
             let updatedItem: T | null = null;
             data = data.map(item => {
-                if ((item as any).id === id) {
+                if (item.id === id) {
                     updatedItem = { ...item, ...updates };
                     return updatedItem;
                 }
